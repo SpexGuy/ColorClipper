@@ -3689,25 +3689,20 @@ void Clipper::JoinCommonEdges()
 }
 
 #ifdef use_xyz
-void Clipper::SetIntersectionZ(TEdge *e1, TEdge *e2, IntPoint& p1, IntPoint& p2) {
-  m_ZFill->OnIntersection(e1->Bot, e1->Top, e1->Side == esLeft, e1->LMLIsForward,
-                          e2->Bot, e2->Top, e2->Side == esLeft, e2->LMLIsForward,
-                          p1, p1.Z, p2.Z);
+void Clipper::SetIntersectionZ(TEdge *e1, TEdge *e2, const IntPoint& pt, IntPoint2Z& p1, IntPoint2Z& p2) {
+  m_ZFill->OnIntersection(e1->Bot, e1->Top, e1->LMLIsForward,
+                          e2->Bot, e2->Top, e2->LMLIsForward,
+                          pt, p1.forwardZ, p1.reverseZ, p2.forwardZ, p2.reverseZ);
 }
-void Clipper::SetIntermediateZ(TEdge *e, IntPoint& pt) {
+void Clipper::SetIntermediateZ(TEdge *e, IntPoint2Z& pt) {
   assert(e->NextInLML);
-  if (e->Side == esLeft) {
-    m_ZFill->OnLeftIntermediate(e->Bot, e->Top, e->NextInLML->Top, e->LMLIsForward, pt);
-  } else {
-    m_ZFill->OnRightIntermediate(e->Bot, e->Top, e->NextInLML->Top, e->LMLIsForward, pt);
-  }
+  m_ZFill->OnPoint(e->Bot, e->Top, e->NextInLML->Top, e->LMLIsForward, pt);
 }
-void Clipper::SetLocalMaxZ(TEdge *e1, TEdge *e2, IntPoint& pt, cInt& fillZ) {
-  m_ZFill->OnLocalMax(e1->Bot, e1->Top, e2->Bot, e2->LMLIsForward, pt);
-  m_ZFill->OnLocalMax(e2->Bot, e1->Top, e1->Bot, e1->LMLIsForward, pt);
+void Clipper::SetLocalMaxZ(TEdge *e1, TEdge *e2, IntPoint2Z& pt) {
+  m_ZFill->OnPoint(e1->Bot, e1->Top, e2->Bot, e1->LMLIsForward, pt);
 }
-void Clipper::SetLocalMinZ(TEdge *left, TEdge *right, IntPoint& pt) {
-  m_ZFill->OnLocalMin(right->Top, left->Bot, left->Top, left->LMLIsForward, pt);
+void Clipper::SetLocalMinZ(TEdge *e1, TEdge *e2, IntPoint2Z& pt) {
+  m_ZFill->OnPoint(e1->Top, e1->Bot, e2->Top, e1->LMLIsForward, pt);
 }
 #endif
 

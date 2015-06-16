@@ -100,6 +100,8 @@ struct IntPoint2Z {
   cInt reverseZ;
   IntPoint2Z(cInt x = 0, cInt y = 0, cInt fz = 0, cInt rz = 0) : X(x), Y(y), forwardZ(fz), reverseZ(rz) {};
   IntPoint2Z(const IntPoint& pt, cInt fz, cInt rz) : X(pt.X), Y(pt.Y), forwardZ(fz), reverseZ(rz) {};
+  void reverse() { std::swap(forwardZ, reverseZ); }
+  cInt getZ() { return forwardZ; }
 };
 #endif
 
@@ -395,11 +397,10 @@ private:
   void FixupFirstLefts1(OutRec* OldOutRec, OutRec* NewOutRec);
   void FixupFirstLefts2(OutRec* OldOutRec, OutRec* NewOutRec);
 #ifdef use_xyz
-  //void SetZ(IntPoint& pt, TEdge& e1, TEdge& e2);
-  void SetIntermediateZ(TEdge *e, IntPoint& pt);
-  void SetLocalMaxZ(TEdge* e1, TEdge* e2, IntPoint& pt, cInt& fillZ);
-  void SetLocalMinZ(TEdge* left, TEdge* right, IntPoint& pt);
-  void SetIntersectionZ(TEdge* e1, TEdge* e2, IntPoint& p1, IntPoint& p2);
+  void SetIntermediateZ(TEdge *e, IntPoint2Z& pt);
+  void SetLocalMaxZ(TEdge* e1, TEdge* e2, IntPoint2Z& pt);
+  void SetLocalMinZ(TEdge* e1, TEdge* e2, IntPoint2Z& pt);
+  void SetIntersectionZ(TEdge* e1, TEdge* e2, const IntPoint& pt, IntPoint2Z& p1, IntPoint2Z& p2);
 #endif
 };
 //------------------------------------------------------------------------------
