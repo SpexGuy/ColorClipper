@@ -107,13 +107,14 @@ inline bool operator== (const IntPoint& a, const IntPoint& b)
 {
   return a.X == b.X && a.Y == b.Y;
 }
-inline bool operator== (const IntPoint& a, const IntPoint2Z& b)
-{
-  return a.X == b.X && a.Y == b.Y;
-}
 inline bool operator!= (const IntPoint& a, const IntPoint& b)
 {
   return a.X != b.X  || a.Y != b.Y;
+}
+#ifdef use_xyz
+inline bool operator== (const IntPoint& a, const IntPoint2Z& b)
+{
+  return a.X == b.X && a.Y == b.Y;
 }
 inline bool operator!= (const IntPoint& a, const IntPoint2Z& b)
 {
@@ -123,18 +124,19 @@ inline bool operator== (const IntPoint2Z& a, const IntPoint& b)
 {
   return a.X == b.X && a.Y == b.Y;
 }
-inline bool operator== (const IntPoint2Z& a, const IntPoint2Z& b)
-{
-  return a.X == b.X && a.Y == b.Y;
-}
 inline bool operator!= (const IntPoint2Z& a, const IntPoint& b)
 {
   return a.X != b.X  || a.Y != b.Y;
+}
+inline bool operator== (const IntPoint2Z& a, const IntPoint2Z& b)
+{
+  return a.X == b.X && a.Y == b.Y;
 }
 inline bool operator!= (const IntPoint2Z& a, const IntPoint2Z& b)
 {
   return a.X != b.X  || a.Y != b.Y;
 }
+#endif
 
 //------------------------------------------------------------------------------
 
