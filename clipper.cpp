@@ -4630,25 +4630,13 @@ std::ostream& operator <<(std::ostream &s, const Paths &p)
 //------------------------------------------------------------------------------
 // ZFill Strategies
 //------------------------------------------------------------------------------
-void ZFill::OnLeftIntermediate(IntPoint &bot, IntPoint &top, IntPoint &next, bool forward, IntPoint &pt) {
+void ZFill::OnPoint(IntPoint &prev, IntPoint &curr, IntPoint &next, bool forward, IntPoint2Z &pt) {
 
 }
 
-void ZFill::OnRightIntermediate(IntPoint &bot, IntPoint &top, IntPoint &next, bool forward, IntPoint &pt) {
-
-}
-
-void ZFill::OnLocalMin(IntPoint &right, IntPoint &bot, IntPoint &left, bool leftIsForward, IntPoint &pt) {
-
-}
-
-void ZFill::OnLocalMax(IntPoint &left, IntPoint &top, IntPoint &right, bool leftIsForward, IntPoint &pt) {
-
-}
-
-void ZFill::OnIntersection(IntPoint &e1bot, IntPoint &e1top, bool e1Left, bool e1Forward,
-                           IntPoint &e2bot, IntPoint &e2top, bool e2Left, bool e2Forward,
-                           const IntPoint& pt, cInt &z1, cInt &z2) {
+void ZFill::OnIntersection(IntPoint &e1bot, IntPoint &e1top, bool e1Forward,
+                           IntPoint &e2bot, IntPoint &e2top, bool e2Forward,
+                           const IntPoint& pt, cInt &z1f, cInt &z1r, cInt &z2f, cInt &z2r) {
 
 }
 void ZFill::BeginLoopReversal(IntPoint& last, IntPoint& first, cInt filler) {

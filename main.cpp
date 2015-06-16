@@ -35,65 +35,52 @@ int main() {
 
 class FollowingZFill : public ZFill {
 public:
-    virtual void OnIntersection(IntPoint& e1bot, IntPoint& e1top, EdgeSide e1Side, bool e1Forward,
-                                IntPoint& e2bot, IntPoint& e2top, EdgeSide e2Side, bool e2Forward,
-                                const IntPoint &pt, cInt& z1, cInt& z2) {
+    virtual void OnIntersection(IntPoint& e1bot, IntPoint& e1top, bool e1Forward,
+                                IntPoint& e2bot, IntPoint& e2top, bool e2Forward,
+                                const IntPoint &pt, cInt& z1f, cInt& z1r, cInt& z2f, cInt& z2r) {
         // I was really hoping that there was some great gestalt of understanding for this.
-        // Instead I just found some strangely ordered chaos.  So this routine is the result
-        // of the enumeration of all 16 possible cases.
-        // I have attempted to catalogue my thoughts about possible reasons in the comments.
+        // But I can't see it. This routine is the result of enumerating all 4 cases.
 
-        // First, identify the begin and end points according to the original polygon direction
-        IntPoint& e1End   = e1Forward ? e1top : e1bot;
-        IntPoint& e1Begin = e1Forward ? e1bot : e1top;
-        IntPoint& e2End   = e2Forward ? e2top : e2bot;
-        IntPoint& e2Begin = e2Forward ? e2bot : e2top;
-        // Then, associate them with the side of the split they will contribute to.
-        IntPoint& e1SplitEnd   = (e1Side == esLeft) ? e1End   : e2End;
-        IntPoint& e1SplitBegin = (e1Side == esLeft) ? e1Begin : e2Begin;
-        IntPoint& e2SplitEnd   = (e2Side == esLeft) ? e2End   : e1End;
-        IntPoint& e2SplitBegin = (e2Side == esLeft) ? e2Begin : e1Begin;
-        // Then we calculate other useful variables
-        // I have no idea why this is how it is, but it is:
-        bool e1Reverse = (e1Side == esLeft) ? !e1Forward : e2Forward;
-        bool e2Reverse = (e2Side == esLeft) ? !e2Forward : e1Forward;
-        bool e1StripBeginning = !e1Reverse;
-        bool e2StripBeginning = !e2Reverse;
-        bool replace = (e1Side != e2Side); //equivalent to e1SplitEnd == e2SplitEnd
-        if (replace) {
-            // Replace the side which is esRight
-            // This replacement sets up the next set of points (above the intersection) to output correctly
-            bool replaceSideIsE1 = (e1Side == esRight);
-            // Associate points with their purpose
-            IntPoint& replaceEnd       = replaceSideIsE1 ? e1End   : e2End;
-            IntPoint& replaceBegin     = replaceSideIsE1 ? e1Begin : e2Begin;
-            // Always strip the lower (closer to top) end. It is not reversed here (On*Intermediate will do that).
-            bool replaceStripBeginning = replaceSideIsE1 ? !e1Forward : !e2Forward;
-            IntPoint& otherEnd         = replaceSideIsE1 ? e2End   : e1End;
-            IntPoint& otherBegin       = replaceSideIsE1 ? e2Begin : e1Begin;
-            bool otherStripBeginning   = replaceSideIsE1 ? e2StripBeginning : e1StripBeginning;
-            replaceEnd.Z = Strip(replaceStripBeginning, replaceEnd.Z, replaceBegin, replaceEnd, pt);
-            // Our splitPoints are equal, so just split one of them
-            z1 = Strip(e1StripBeginning, otherEnd.Z, otherBegin, otherEnd, pt);
-            z2 = otherEnd.Z; // the other gets the unstripped half
+        // The problem decomposes nicely into independent problems on each edge.
+        // a     d
+        //  \   /
+        // z1f z2f
+        // z1r z2r
+        //  /   \
+        // c     f
+
+        if (e1Forward) {
+            // set z1f=b(f), z2r=r(e(f)), e1top.Z=e(f)
+            z1f = StripBegin(e1top.Z, e1bot, e1top, pt);
+            z2r = ReverseZ(StripEnd(e1top.Z, e1bot, e1top, pt));
+            e1top.Z = StripEnd(e1top.Z, e1bot, e1top, pt);
         } else {
-            z1 = Strip(e1StripBeginning, e1SplitEnd.Z, e1SplitBegin, e1SplitEnd, pt);
-            z2 = Strip(e2StripBeginning, e2SplitEnd.Z, e2SplitBegin, e2SplitEnd, pt);
+            // set z1f=r(e(a)), z2r=b(a), e1bot.Z=b(a)
+            z1f = ReverseZ(StripEnd(e1bot.Z, e1top, e1bot, pt));
+            z2r = StripBegin(e1bot.Z, e1top, e1bot, pt);
+            e1bot.Z = StripBegin(e1bot.Z, e1top, e1bot, pt);
         }
-        if (e1Reverse) z1 = ReverseZ(z1);
-        if (e2Reverse) z2 = ReverseZ(z2);
+
+        if (e2Forward) {
+            // set z2f=b(c), z1r=r(e(c)), e2top.Z=e(c)
+            z2f = StripBegin(e2top.Z, e2bot, e2top, pt);
+            z1r = ReverseZ(StripEnd(e2top.Z, e2bot, e2top, pt));
+            e2top.Z = StripEnd(e2top.Z, e2bot, e2top, pt);
+        } else {
+            // set z2f=r(e(d)), z1r=b(d), e2bot.Z=e(d)
+            z2f = ReverseZ(StripEnd(e2bot.Z, e2top, e2bot, pt));
+            z1r = StripBegin(e2bot.Z, e2top, e2bot, pt);
+            e2bot.Z = StripBegin(e2bot.Z, e2top, e2bot, pt);
+        }
     }
-    virtual void OnLeftIntermediate(IntPoint& bot, IntPoint& top, IntPoint& next, bool forward, IntPoint& pt) {
-        pt.Z = (forward ? top.Z : ReverseZ(bot.Z));
-    }
-    virtual void OnRightIntermediate(IntPoint& bot, IntPoint& top, IntPoint& next, bool forward, IntPoint& pt) {
-        pt.Z = (forward ? ReverseZ(next.Z) : top.Z);
-    }
-    virtual void OnLocalMin(IntPoint& right, IntPoint& bot, IntPoint& left, bool leftIsForward, IntPoint& pt) {
-        pt.Z = (leftIsForward ? bot.Z : ReverseZ(right.Z));
-    }
-    virtual void OnLocalMax(IntPoint& left, IntPoint& top, IntPoint& right, bool leftIsForward, IntPoint& pt) {
-        pt.Z = (leftIsForward ? ReverseZ(left.Z) : top.Z);
+    virtual void OnPoint(IntPoint& prev, IntPoint& curr, IntPoint& next, bool forward, IntPoint2Z& pt) {
+        if (forward) {
+            pt.forwardZ = curr.Z;
+            pt.reverseZ = ReverseZ(next.Z);
+        } else {
+            pt.forwardZ = ReverseZ(prev.Z);
+            pt.reverseZ = curr.Z;
+        }
     }
 
     virtual void BeginLoopReversal(IntPoint& last, IntPoint& first, cInt filler) {
@@ -124,13 +111,4 @@ protected:
     virtual cInt StripBegin(cInt& z, IntPoint& from, IntPoint& to, const IntPoint& pt) {return z;}
     virtual cInt StripEnd(cInt& z, IntPoint& from, IntPoint& to, const IntPoint& pt) {return z;}
     cInt firstWas = 0;
-private:
-    inline cInt Strip(bool stripBeginning, cInt& z, IntPoint& from, IntPoint& to, const IntPoint& pt) {
-        if (stripBeginning) {
-            return StripBegin(z, from, to, pt);
-        } else {
-            return StripEnd(z, from, to, pt);
-        }
-    }
-
 };
