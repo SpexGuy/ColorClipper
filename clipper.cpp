@@ -47,6 +47,7 @@
 #include <cstdlib>
 #include <ostream>
 #include <functional>
+#include <assert.h>
 
 namespace ClipperLib {
 
@@ -59,9 +60,12 @@ enum Direction { dRightToLeft, dLeftToRight };
 static int const Unassigned = -1;  //edge not currently 'owning' a solution
 static int const Skip = -2;        //edge that would otherwise close a path
 
+static ZFill defaultFill;
+
 #define HORIZONTAL (-1.0E+40)
 #define TOLERANCE (1.0e-20)
 #define NEAR_ZERO(val) (((val) > -TOLERANCE) && ((val) < TOLERANCE))
+#define UNUSED(expr) (void)(expr)
 
 struct TEdge {
   IntPoint Bot;
@@ -82,6 +86,7 @@ struct TEdge {
   TEdge *PrevInAEL;
   TEdge *NextInSEL;
   TEdge *PrevInSEL;
+  bool LMLIsForward;
 };
 
 struct IntersectNode {
@@ -625,14 +630,15 @@ void IntersectPoint(TEdge &Edge1, TEdge &Edge2, IntPoint &ip)
   ip.Z = 0;
 #endif
 
+  // Find intersection point
   double b1, b2;
-  if (Edge1.Dx == Edge2.Dx)
+  if (Edge1.Dx == Edge2.Dx) // Edge1 and Edge2 are parallel
   {
     ip.Y = Edge1.Curr.Y;
     ip.X = TopX(Edge1, ip.Y);
     return;
   }
-  else if (Edge1.Delta.X == 0)
+  else if (Edge1.Delta.X == 0) // Edge1 is vertical
   {
     ip.X = Edge1.Bot.X;
     if (IsHorizontal(Edge2))
@@ -643,7 +649,7 @@ void IntersectPoint(TEdge &Edge1, TEdge &Edge2, IntPoint &ip)
       ip.Y = Round(ip.X / Edge2.Dx + b2);
     }
   }
-  else if (Edge2.Delta.X == 0)
+  else if (Edge2.Delta.X == 0) // Edge2 is vertical
   {
     ip.X = Edge2.Bot.X;
     if (IsHorizontal(Edge1))
@@ -654,7 +660,7 @@ void IntersectPoint(TEdge &Edge1, TEdge &Edge2, IntPoint &ip)
       ip.Y = Round(ip.X / Edge1.Dx + b1);
     }
   } 
-  else 
+  else // Edge1 and Edge2 intersect and are not vertical (have finite slope)
   {
     b1 = Edge1.Bot.X - Edge1.Bot.Y * Edge1.Dx;
     b2 = Edge2.Bot.X - Edge2.Bot.Y * Edge2.Dx;
@@ -686,20 +692,6 @@ void IntersectPoint(TEdge &Edge1, TEdge &Edge2, IntPoint &ip)
       ip.X = TopX(Edge2, ip.Y); else
       ip.X = TopX(Edge1, ip.Y);
   }
-}
-//------------------------------------------------------------------------------
-
-void ReversePolyPtLinks(OutPt *pp)
-{
-  if (!pp) return;
-  OutPt *pp1, *pp2;
-  pp1 = pp;
-  do {
-  pp2 = pp1->Next;
-  pp1->Next = pp1->Prev;
-  pp1->Prev = pp2;
-  pp1 = pp2;
-  } while( pp1 != pp );
 }
 //------------------------------------------------------------------------------
 
@@ -759,7 +751,8 @@ inline void ReverseHorizontal(TEdge &e)
   //progression of the bounds - ie so their xbots will align with the
   //adjoining lower edge. [Helpful in the ProcessHorizontal() method.]
   Swap(e.Top.X, e.Bot.X);
-#ifdef use_xyz  
+#ifdef use_xyz
+  //COLOR: checkitout
   Swap(e.Top.Z, e.Bot.Z);
 #endif
 }
@@ -922,6 +915,7 @@ TEdge* FindNextLocMin(TEdge* E)
 
 TEdge* ClipperBase::ProcessBound(TEdge* E, bool NextIsForward)
 {
+  //COLOR: Must figure out horizontals here and set LMLIsForward accordingly
   TEdge *Result = E;
   TEdge *Horz = 0;
 
@@ -1008,6 +1002,7 @@ TEdge* ClipperBase::ProcessBound(TEdge* E, bool NextIsForward)
     }
     while (E != Result) 
     {
+      E->LMLIsForward = NextIsForward;
       E->NextInLML = E->Next;
       if (IsHorizontal(*E) && E != EStart &&
         E->Bot.X != E->Prev->Top.X) ReverseHorizontal(*E);
@@ -1015,6 +1010,7 @@ TEdge* ClipperBase::ProcessBound(TEdge* E, bool NextIsForward)
     }
     if (IsHorizontal(*E) && E != EStart && E->Bot.X != E->Prev->Top.X) 
       ReverseHorizontal(*E);
+    Result->LMLIsForward = NextIsForward;
     Result = Result->Next; //move to the edge just beyond current bound
   } else
   {
@@ -1033,6 +1029,7 @@ TEdge* ClipperBase::ProcessBound(TEdge* E, bool NextIsForward)
 
     while (E != Result)
     {
+      E->LMLIsForward = NextIsForward;
       E->NextInLML = E->Prev;
       if (IsHorizontal(*E) && E != EStart && E->Bot.X != E->Next->Top.X) 
         ReverseHorizontal(*E);
@@ -1040,6 +1037,7 @@ TEdge* ClipperBase::ProcessBound(TEdge* E, bool NextIsForward)
     }
     if (IsHorizontal(*E) && E != EStart && E->Bot.X != E->Next->Top.X) 
       ReverseHorizontal(*E);
+    Result->LMLIsForward = NextIsForward;
     Result = Result->Prev; //move to the edge just beyond current bound
   }
 
@@ -1065,7 +1063,6 @@ bool ClipperBase::AddPath(const Path &pg, PolyType PolyTyp, bool Closed)
   //create a new edge array ...
   TEdge *edges = new TEdge [highI +1];
 
-  bool IsFlat = true;
   //1. Basic (first) edge initialization ...
   try
   {
@@ -1133,6 +1130,7 @@ bool ClipperBase::AddPath(const Path &pg, PolyType PolyTyp, bool Closed)
     eStart->Prev->OutIdx = Skip;
   }
 
+  bool IsFlat = true;
   //3. Do second stage of edge initialization ...
   E = eStart;
   do
@@ -1348,7 +1346,7 @@ Clipper::Clipper(int initOptions) : ClipperBase() //constructor
   m_PreserveCollinear = ((initOptions & ioPreserveCollinear) != 0);
   m_HasOpenPaths = false;
 #ifdef use_xyz  
-  m_ZFill = 0;
+  m_ZFill = &defaultFill;
 #endif
 }
 //------------------------------------------------------------------------------
@@ -1360,9 +1358,9 @@ Clipper::~Clipper() //destructor
 //------------------------------------------------------------------------------
 
 #ifdef use_xyz  
-void Clipper::ZFillFunction(ZFillCallback zFillFunc)
+void Clipper::Callback(ZFill *zFill)
 {  
-  m_ZFill = zFillFunc;
+  m_ZFill = zFill;
 }
 //------------------------------------------------------------------------------
 #endif
@@ -1731,9 +1729,11 @@ OutPt* Clipper::AddLocalMinPoly(TEdge *e1, TEdge *e2, const IntPoint &Pt)
 {
   OutPt* result;
   TEdge *e, *prevE;
+  IntPoint pt = Pt;
   if (IsHorizontal(*e2) || ( e1->Dx > e2->Dx ))
   {
-    result = AddOutPt(e1, Pt);
+    SetLocalMinZ(e1, e2, pt);
+    result = AddOutPt(e1, pt);
     e2->OutIdx = e1->OutIdx;
     e1->Side = esLeft;
     e2->Side = esRight;
@@ -1744,7 +1744,8 @@ OutPt* Clipper::AddLocalMinPoly(TEdge *e1, TEdge *e2, const IntPoint &Pt)
       prevE = e->PrevInAEL;
   } else
   {
-    result = AddOutPt(e2, Pt);
+    SetLocalMinZ(e2, e1, pt);
+    result = AddOutPt(e2, pt);
     e1->OutIdx = e2->OutIdx;
     e1->Side = esRight;
     e2->Side = esLeft;
@@ -1754,13 +1755,14 @@ OutPt* Clipper::AddLocalMinPoly(TEdge *e1, TEdge *e2, const IntPoint &Pt)
     else
         prevE = e->PrevInAEL;
   }
-
+  //The edge before this in AEL is emitting and coincides with this line and <nonzero WindDelta on both>
   if (prevE && prevE->OutIdx >= 0 &&
       (TopX(*prevE, Pt.Y) == TopX(*e, Pt.Y)) &&
       SlopesEqual(*e, *prevE, m_UseFullRange) &&
       (e->WindDelta != 0) && (prevE->WindDelta != 0))
   {
-    OutPt* outPt = AddOutPt(prevE, Pt);
+    //COLOR: Join
+    OutPt* outPt = AddOutPt(prevE, pt);
     AddJoin(result, outPt, e->Top);
   }
   return result;
@@ -1769,17 +1771,23 @@ OutPt* Clipper::AddLocalMinPoly(TEdge *e1, TEdge *e2, const IntPoint &Pt)
 
 void Clipper::AddLocalMaxPoly(TEdge *e1, TEdge *e2, const IntPoint &Pt)
 {
-  AddOutPt( e1, Pt );
-  if (e2->WindDelta == 0) AddOutPt(e2, Pt);
+  //COLOR: Local max
+  IntPoint pt = Pt;
+  cInt fillZ = 0;
+#ifdef use_xyz
+  SetLocalMaxZ(e1, e2, pt, fillZ);
+#endif
+  AddOutPt( e1, pt );
+  if (e2->WindDelta == 0) AddOutPt(e2, pt);
   if( e1->OutIdx == e2->OutIdx )
   {
     e1->OutIdx = Unassigned;
     e2->OutIdx = Unassigned;
   }
   else if (e1->OutIdx < e2->OutIdx) 
-    AppendPolygon(e1, e2); 
+    AppendPolygon(e1, e2, fillZ);
   else 
-    AppendPolygon(e2, e1);
+    AppendPolygon(e2, e1, fillZ);
 }
 //------------------------------------------------------------------------------
 
@@ -1862,6 +1870,7 @@ void Clipper::InsertLocalMinimaIntoAEL(const cInt botY)
     OutPt *Op1 = 0;
     if (!lb)
     {
+      //COLOR: This only happens if lines
       //nb: don't insert LB into either AEL or SEL
       InsertEdgeIntoAEL(rb, 0);
       SetWindingCount(*rb);
@@ -1870,6 +1879,7 @@ void Clipper::InsertLocalMinimaIntoAEL(const cInt botY)
     } 
     else if (!rb)
     {
+      //COLOR: This only happens if lines
       InsertEdgeIntoAEL(lb, 0);
       SetWindingCount(*lb);
       if (IsContributing(*lb))
@@ -1916,6 +1926,7 @@ void Clipper::InsertLocalMinimaIntoAEL(const cInt botY)
       SlopesEqual(*lb->PrevInAEL, *lb, m_UseFullRange) &&
       (lb->WindDelta != 0) && (lb->PrevInAEL->WindDelta != 0))
     {
+        //COLOR: Join
         OutPt *Op2 = AddOutPt(lb->PrevInAEL, lb->Bot);
         AddJoin(Op1, Op2, lb->Top);
     }
@@ -1927,6 +1938,7 @@ void Clipper::InsertLocalMinimaIntoAEL(const cInt botY)
         SlopesEqual(*rb->PrevInAEL, *rb, m_UseFullRange) &&
         (rb->WindDelta != 0) && (rb->PrevInAEL->WindDelta != 0))
       {
+          //COLOR: Join
           OutPt *Op2 = AddOutPt(rb->PrevInAEL, rb->Bot);
           AddJoin(Op1, Op2, rb->Top);
       }
@@ -1975,15 +1987,24 @@ void Clipper::DeleteFromSEL(TEdge *e)
 //------------------------------------------------------------------------------
 
 #ifdef use_xyz
-void Clipper::SetZ(IntPoint& pt, TEdge& e1, TEdge& e2)
-{
-  if (pt.Z != 0 || !m_ZFill) return;
-  else if (pt == e1.Bot) pt.Z = e1.Bot.Z;
-  else if (pt == e1.Top) pt.Z = e1.Top.Z;
-  else if (pt == e2.Bot) pt.Z = e2.Bot.Z;
-  else if (pt == e2.Top) pt.Z = e2.Top.Z;
-  else (*m_ZFill)(e1.Bot, e1.Top, e2.Bot, e2.Top, pt); 
-}
+//void Clipper::SetZ(IntPoint& pt, TEdge& e1, TEdge& e2)
+//{
+//  //Old implementation (borked)
+//  pt.Z = 0;
+//  //put the 'preferred' point as first parameter ...
+//  //COLOR: this is wrong, definitely.
+//  if (e1.OutIdx < 0)
+//    m_ZFill->OnIntersection(e1.Bot, e1.Top, e2.Bot, e2.Top, pt); //outside a path so presume entering
+//  else
+//    m_ZFill->OnIntersection(e1.Top, e1.Bot, e2.Top, e2.Bot, pt); //inside a path so presume exiting
+//  //COLOR: fix edge order
+////  if (pt.Z != 0 || !m_ZFill) return;
+////  else if (pt == e1.Bot) pt.Z = e1.Bot.Z;
+////  else if (pt == e1.Top) pt.Z = e1.Top.Z;
+////  else if (pt == e2.Bot) pt.Z = e2.Bot.Z;
+////  else if (pt == e2.Top) pt.Z = e2.Top.Z;
+////  else (*m_ZFill)(e1.Bot, e1.Top, e2.Bot, e2.Top, pt);
+//}
 //------------------------------------------------------------------------------
 #endif
 
@@ -1993,7 +2014,8 @@ void Clipper::IntersectEdges(TEdge *e1, TEdge *e2, IntPoint &Pt)
   bool e2Contributing = ( e2->OutIdx >= 0 );
 
 #ifdef use_xyz
-        SetZ(Pt, *e1, *e2);
+  //This is not where this goes.
+  //SetZ(Pt, *e1, *e2);
 #endif
 
 #ifdef use_lines
@@ -2108,12 +2130,21 @@ void Clipper::IntersectEdges(TEdge *e1, TEdge *e2, IntPoint &Pt)
     if ((e1Wc != 0 && e1Wc != 1) || (e2Wc != 0 && e2Wc != 1) ||
       (e1->PolyTyp != e2->PolyTyp && m_ClipType != ctXor) )
     {
+      //COLOR: Do I need something here?
       AddLocalMaxPoly(e1, e2, Pt); 
     }
     else
     {
+#ifdef use_xyz
+      IntPoint z1 = Pt;
+      IntPoint z2 = Pt;
+      SetIntersectionZ(e1, e2, z1, z2);
+      AddOutPt(e1, z1);
+      AddOutPt(e2, z2);
+#else
       AddOutPt(e1, Pt);
       AddOutPt(e2, Pt);
+#endif
       SwapSides( *e1 , *e2 );
       SwapPolyIndexes( *e1 , *e2 );
     }
@@ -2122,7 +2153,14 @@ void Clipper::IntersectEdges(TEdge *e1, TEdge *e2, IntPoint &Pt)
   {
     if (e2Wc == 0 || e2Wc == 1) 
     {
+#ifdef use_xyz
+      IntPoint z1 = Pt;
+      IntPoint z2 = Pt;
+      SetIntersectionZ(e1, e2, z1, z2);
+      AddOutPt(e1, z1);
+#else
       AddOutPt(e1, Pt);
+#endif
       SwapSides(*e1, *e2);
       SwapPolyIndexes(*e1, *e2);
     }
@@ -2131,7 +2169,14 @@ void Clipper::IntersectEdges(TEdge *e1, TEdge *e2, IntPoint &Pt)
   {
     if (e1Wc == 0 || e1Wc == 1) 
     {
+#ifdef use_xyz
+      IntPoint z1 = Pt;
+      IntPoint z2 = Pt;
+      SetIntersectionZ(e1, e2, z1, z2);
+      AddOutPt(e2, z2);
+#else
       AddOutPt(e2, Pt);
+#endif
       SwapSides(*e1, *e2);
       SwapPolyIndexes(*e1, *e2);
     }
@@ -2240,7 +2285,30 @@ OutRec* Clipper::GetOutRec(int Idx)
 }
 //------------------------------------------------------------------------------
 
-void Clipper::AppendPolygon(TEdge *e1, TEdge *e2)
+void Clipper::ReversePolyPtLinks(OutPt *pp, cInt fillZ)
+{
+  if (!pp) return;
+#ifdef use_xyz
+  m_ZFill->BeginLoopReversal(pp->Prev->Pt, pp->Pt, fillZ);
+#endif
+  OutPt *pp1, *pp2;
+  pp1 = pp;
+  do {
+    pp2 = pp1->Next;
+    pp1->Next = pp1->Prev;
+    pp1->Prev = pp2;
+#ifdef use_xyz
+    if (pp2 != pp)
+      m_ZFill->ReverseEdge(pp1->Pt, pp2->Pt);
+    else
+      m_ZFill->FinishLoopReversal(pp1->Pt, pp2->Pt);
+#endif
+    pp1 = pp2;
+  } while( pp1 != pp );
+}
+//------------------------------------------------------------------------------
+
+void Clipper::AppendPolygon(TEdge *e1, TEdge *e2, cInt fillZ)
 {
   //get the start and ends of both output polygons ...
   OutRec *outRec1 = m_PolyOuts[e1->OutIdx];
@@ -2269,7 +2337,7 @@ void Clipper::AppendPolygon(TEdge *e1, TEdge *e2)
     if(  e2->Side == esLeft )
     {
       //z y x a b c
-      ReversePolyPtLinks(p2_lft);
+      ReversePolyPtLinks(p2_lft, fillZ);
       p2_lft->Next = p1_lft;
       p1_lft->Prev = p2_lft;
       p1_rt->Next = p2_rt;
@@ -2290,7 +2358,7 @@ void Clipper::AppendPolygon(TEdge *e1, TEdge *e2)
     if(  e2->Side == esRight )
     {
       //a b c z y x
-      ReversePolyPtLinks(p2_lft);
+      ReversePolyPtLinks(p2_lft, fillZ);
       p1_rt->Next = p2_rt;
       p2_rt->Prev = p1_rt;
       p2_lft->Next = p1_lft;
@@ -2369,6 +2437,7 @@ OutPt* Clipper::AddOutPt(TEdge *e, const IntPoint &pt)
     newOp->Prev = newOp;
     if (!outRec->IsOpen)
       SetHoleState(e, outRec);
+    //COLOR: old impl SetZ(pt) here
     e->OutIdx = outRec->Idx;
     return newOp;
   } else
@@ -2388,6 +2457,7 @@ OutPt* Clipper::AddOutPt(TEdge *e, const IntPoint &pt)
     newOp->Prev->Next = newOp;
     op->Prev = newOp;
     if (ToFront) outRec->Pts = newOp;
+    //COLOR: old impl SetZ(pt) here
     return newOp;
   }
 }
@@ -2600,6 +2670,7 @@ void Clipper::ProcessHorizontal(TEdge *horzEdge, bool isTopOfScanbeam)
 
           if (horzEdge->OutIdx >= 0)
           {
+            //COLOR: Deal with horizontal shit here
             OutPt* op1 = AddOutPt(horzEdge, horzEdge->Top);
             TEdge* eNextHorz = m_SortedEdges;
             while (eNextHorz)
@@ -2640,6 +2711,7 @@ void Clipper::ProcessHorizontal(TEdge *horzEdge, bool isTopOfScanbeam)
     if (horzEdge->NextInLML && IsHorizontal(*horzEdge->NextInLML))
     {
       UpdateEdgeIntoAEL(horzEdge);
+      //COLOR: Deal with horizontal edge shit here
       if (horzEdge->OutIdx >= 0) AddOutPt(horzEdge, horzEdge->Bot);
       GetHorzDirection(*horzEdge, dir, horzLeft, horzRight);
     } else
@@ -2842,6 +2914,7 @@ void Clipper::DoMaxima(TEdge *e)
   TEdge* eMaxPair = GetMaximaPair(e);
   if (!eMaxPair)
   {
+    //COLOR: Only happens when lines.
     if (e->OutIdx >= 0)
       AddOutPt(e, e->Top);
     DeleteFromAEL(e);
@@ -2851,6 +2924,7 @@ void Clipper::DoMaxima(TEdge *e)
   TEdge* eNext = e->NextInAEL;
   while(eNext && eNext != eMaxPair)
   {
+    //COLOR: The fuck is this?
     IntersectEdges(e, eNext, e->Top);
     SwapPositionsInAEL(e, eNext);
     eNext = e->NextInAEL;
@@ -2917,8 +2991,14 @@ void Clipper::ProcessEdgesAtTopOfScanbeam(const cInt topY)
       if (IsIntermediate(e, topY) && IsHorizontal(*e->NextInLML))
       {
         UpdateEdgeIntoAEL(e);
-        if (e->OutIdx >= 0)
-          AddOutPt(e, e->Bot);
+        if (e->OutIdx >= 0) {
+          IntPoint pt = e->Bot;
+#ifdef use_xyz
+          //COLOR: This might be wrong, since it's using e->bot
+          SetIntermediateZ(e, pt);
+#endif
+          AddOutPt(e, pt);
+        }
         AddEdgeToSEL(e);
       } 
       else
@@ -2935,7 +3015,9 @@ void Clipper::ProcessEdgesAtTopOfScanbeam(const cInt topY)
         {
           IntPoint pt = e->Curr;
 #ifdef use_xyz
-          SetZ(pt, *ePrev, *e);
+          //COLOR: this is new.
+          //We'll ignore it, since simple mode
+          //SetZ(pt, *ePrev, *e);
 #endif
           OutPt* op = AddOutPt(ePrev, pt);
           OutPt* op2 = AddOutPt(e, pt);
@@ -2957,19 +3039,26 @@ void Clipper::ProcessEdgesAtTopOfScanbeam(const cInt topY)
     if(IsIntermediate(e, topY))
     {
       OutPt* op = 0;
-      if( e->OutIdx >= 0 ) 
-        op = AddOutPt(e, e->Top);
+      if( e->OutIdx >= 0 ) {
+        IntPoint pt = e->Top;
+#ifdef use_xyz
+        SetIntermediateZ(e, pt);
+#endif
+        op = AddOutPt(e, pt);
+      }
       UpdateEdgeIntoAEL(e);
 
       //if output polygons share an edge, they'll need joining later ...
       TEdge* ePrev = e->PrevInAEL;
       TEdge* eNext = e->NextInAEL;
+      //ePrev exists and overlaps e (and then continues) and both have out polygons and both are not lines
       if (ePrev && ePrev->Curr.X == e->Bot.X &&
         ePrev->Curr.Y == e->Bot.Y && op &&
         ePrev->OutIdx >= 0 && ePrev->Curr.Y > ePrev->Top.Y &&
         SlopesEqual(*e, *ePrev, m_UseFullRange) &&
         (e->WindDelta != 0) && (ePrev->WindDelta != 0))
       {
+        //COLOR: Join
         OutPt* op2 = AddOutPt(ePrev, e->Bot);
         AddJoin(op, op2, e->Top);
       }
@@ -2979,6 +3068,7 @@ void Clipper::ProcessEdgesAtTopOfScanbeam(const cInt topY)
         SlopesEqual(*e, *eNext, m_UseFullRange) &&
         (e->WindDelta != 0) && (eNext->WindDelta != 0))
       {
+        //COLOR: Join
         OutPt* op2 = AddOutPt(eNext, e->Bot);
         AddJoin(op, op2, e->Top);
       }
@@ -3598,6 +3688,29 @@ void Clipper::JoinCommonEdges()
   }
 }
 
+#ifdef use_xyz
+void Clipper::SetIntersectionZ(TEdge *e1, TEdge *e2, IntPoint& p1, IntPoint& p2) {
+  m_ZFill->OnIntersection(e1->Bot, e1->Top, e1->Side == esLeft, e1->LMLIsForward,
+                          e2->Bot, e2->Top, e2->Side == esLeft, e2->LMLIsForward,
+                          p1, p1.Z, p2.Z);
+}
+void Clipper::SetIntermediateZ(TEdge *e, IntPoint& pt) {
+  assert(e->NextInLML);
+  if (e->Side == esLeft) {
+    m_ZFill->OnLeftIntermediate(e->Bot, e->Top, e->NextInLML->Top, e->LMLIsForward, pt);
+  } else {
+    m_ZFill->OnRightIntermediate(e->Bot, e->Top, e->NextInLML->Top, e->LMLIsForward, pt);
+  }
+}
+void Clipper::SetLocalMaxZ(TEdge *e1, TEdge *e2, IntPoint& pt, cInt& fillZ) {
+  m_ZFill->OnLocalMax(e1->Bot, e1->Top, e2->Bot, e2->LMLIsForward, pt);
+  m_ZFill->OnLocalMax(e2->Bot, e1->Top, e1->Bot, e1->LMLIsForward, pt);
+}
+void Clipper::SetLocalMinZ(TEdge *left, TEdge *right, IntPoint& pt) {
+  m_ZFill->OnLocalMin(right->Top, left->Bot, left->Top, left->LMLIsForward, pt);
+}
+#endif
+
 //------------------------------------------------------------------------------
 // ClipperOffset support functions ...
 //------------------------------------------------------------------------------
@@ -3624,6 +3737,9 @@ ClipperOffset::ClipperOffset(double miterLimit, double arcTolerance)
   this->MiterLimit = miterLimit;
   this->ArcTolerance = arcTolerance;
   m_lowest.X = -1;
+#ifdef use_xyz
+  m_ZFill = &defaultFill;
+#endif // use_xyz
 }
 //------------------------------------------------------------------------------
 
@@ -3641,6 +3757,21 @@ void ClipperOffset::Clear()
   m_lowest.X = -1;
 }
 //------------------------------------------------------------------------------
+
+inline void ClipperOffset::SetOffsetZ(int step, int steps, IntPoint& source, IntPoint& dest) {
+#ifdef use_xyz
+  m_ZFill->OnOffset(step, steps, source, dest);
+#endif // use_xyz
+}
+//------------------------------------------------------------------------------
+
+#ifdef use_xyz
+void ClipperOffset::Callback(ZFill *callback) {
+  m_ZFill = callback;
+}
+
+//------------------------------------------------------------------------------
+#endif // use_xyz
 
 void ClipperOffset::AddPath(const Path& path, JoinType joinType, EndType endType)
 {
@@ -3705,16 +3836,20 @@ void ClipperOffset::FixOrientations()
     {
       PolyNode& node = *m_polyNodes.Childs[i];
       if (node.m_endtype == etClosedPolygon ||
-        (node.m_endtype == etClosedLine && Orientation(node.Contour)))
+        (node.m_endtype == etClosedLine && Orientation(node.Contour))) {
           ReversePath(node.Contour);
+          printf("Oh no! Reversed a path! (0)\n");
+        }
     }
   } else
   {
     for (int i = 0; i < m_polyNodes.ChildCount(); ++i)
     {
       PolyNode& node = *m_polyNodes.Childs[i];
-      if (node.m_endtype == etClosedLine && !Orientation(node.Contour))
+      if (node.m_endtype == etClosedLine && !Orientation(node.Contour)) {
         ReversePath(node.Contour);
+        printf("Oh no! Reversed a path! (1)\n");
+      }
     }
   }
 }
@@ -3728,6 +3863,9 @@ void ClipperOffset::Execute(Paths& solution, double delta)
   
   //now clean up 'corners' ...
   Clipper clpr;
+#ifdef use_xyz
+  clpr.Callback(m_ZFill);
+#endif // use_xyz
   clpr.AddPaths(m_destPolys, ptSubject, true);
   if (delta > 0)
   {
@@ -3845,9 +3983,12 @@ void ClipperOffset::DoOffset(double delta)
         double X = 1.0, Y = 0.0;
         for (cInt j = 1; j <= steps; j++)
         {
-          m_destPoly.push_back(IntPoint(
+          IntPoint pt = IntPoint(
             Round(m_srcPoly[0].X + X * delta),
-            Round(m_srcPoly[0].Y + Y * delta)));
+            Round(m_srcPoly[0].Y + Y * delta)
+          );
+          SetOffsetZ(j, steps, m_srcPoly[0], pt);
+          m_destPoly.push_back(pt);
           double X2 = X;
           X = X * m_cos - m_sin * Y;
           Y = X2 * m_sin + Y * m_cos;
@@ -3858,9 +3999,12 @@ void ClipperOffset::DoOffset(double delta)
         double X = -1.0, Y = -1.0;
         for (int j = 0; j < 4; ++j)
         {
-          m_destPoly.push_back(IntPoint(
+          IntPoint pt = IntPoint(
             Round(m_srcPoly[0].X + X * delta),
-            Round(m_srcPoly[0].Y + Y * delta)));
+            Round(m_srcPoly[0].Y + Y * delta)
+          );
+          SetOffsetZ(0, 0, m_srcPoly[0], pt);
+          m_destPoly.push_back(pt);
           if (X < 0) X = 1;
           else if (Y < 0) Y = 1;
           else X = -1;
@@ -3915,9 +4059,11 @@ void ClipperOffset::DoOffset(double delta)
         int j = len - 1;
         pt1 = IntPoint((cInt)Round(m_srcPoly[j].X + m_normals[j].X *
           delta), (cInt)Round(m_srcPoly[j].Y + m_normals[j].Y * delta));
+        SetOffsetZ(0, 0, m_srcPoly[j], pt1);
         m_destPoly.push_back(pt1);
         pt1 = IntPoint((cInt)Round(m_srcPoly[j].X - m_normals[j].X *
           delta), (cInt)Round(m_srcPoly[j].Y - m_normals[j].Y * delta));
+        SetOffsetZ(0, 0, m_srcPoly[j], pt1);
         m_destPoly.push_back(pt1);
       }
       else
@@ -3944,9 +4090,11 @@ void ClipperOffset::DoOffset(double delta)
       {
         pt1 = IntPoint((cInt)Round(m_srcPoly[0].X - m_normals[0].X * delta),
           (cInt)Round(m_srcPoly[0].Y - m_normals[0].Y * delta));
+        SetOffsetZ(0, 0, m_srcPoly[0], pt1);
         m_destPoly.push_back(pt1);
         pt1 = IntPoint((cInt)Round(m_srcPoly[0].X + m_normals[0].X * delta),
           (cInt)Round(m_srcPoly[0].Y + m_normals[0].Y * delta));
+        SetOffsetZ(0, 0, m_srcPoly[0], pt1);
         m_destPoly.push_back(pt1);
       }
       else
@@ -3974,6 +4122,7 @@ void ClipperOffset::OffsetPoint(int j, int& k, JoinType jointype)
     double cosA = (m_normals[k].X * m_normals[j].X + m_normals[j].Y * m_normals[k].Y ); 
     if (cosA > 0) // angle => 0 degrees
     {
+      //COLOR: This is new
       m_destPoly.push_back(IntPoint(Round(m_srcPoly[j].X + m_normals[k].X * m_delta),
         Round(m_srcPoly[j].Y + m_normals[k].Y * m_delta)));
       return; 
@@ -3985,11 +4134,17 @@ void ClipperOffset::OffsetPoint(int j, int& k, JoinType jointype)
 
   if (m_sinA * m_delta < 0)
   {
-    m_destPoly.push_back(IntPoint(Round(m_srcPoly[j].X + m_normals[k].X * m_delta),
-      Round(m_srcPoly[j].Y + m_normals[k].Y * m_delta)));
+    IntPoint pt = IntPoint(Round(m_srcPoly[j].X + m_normals[k].X * m_delta),
+      Round(m_srcPoly[j].Y + m_normals[k].Y * m_delta)
+    );
+    SetOffsetZ(0, 0, m_srcPoly[j], pt);
+    m_destPoly.push_back(pt);
     m_destPoly.push_back(m_srcPoly[j]);
-    m_destPoly.push_back(IntPoint(Round(m_srcPoly[j].X + m_normals[j].X * m_delta),
-      Round(m_srcPoly[j].Y + m_normals[j].Y * m_delta)));
+    pt = IntPoint(Round(m_srcPoly[j].X + m_normals[j].X * m_delta),
+      Round(m_srcPoly[j].Y + m_normals[j].Y * m_delta)
+    );
+    SetOffsetZ(0, 0, m_srcPoly[j], pt);
+    m_destPoly.push_back(pt);
   }
   else
     switch (jointype)
@@ -4012,20 +4167,26 @@ void ClipperOffset::DoSquare(int j, int k)
 {
   double dx = std::tan(std::atan2(m_sinA,
       m_normals[k].X * m_normals[j].X + m_normals[k].Y * m_normals[j].Y) / 4);
-  m_destPoly.push_back(IntPoint(
+  IntPoint pt = IntPoint(
       Round(m_srcPoly[j].X + m_delta * (m_normals[k].X - m_normals[k].Y * dx)),
-      Round(m_srcPoly[j].Y + m_delta * (m_normals[k].Y + m_normals[k].X * dx))));
-  m_destPoly.push_back(IntPoint(
+      Round(m_srcPoly[j].Y + m_delta * (m_normals[k].Y + m_normals[k].X * dx)));
+  SetOffsetZ(0, 0, m_srcPoly[j], pt);
+  m_destPoly.push_back(pt);
+  pt = IntPoint(
       Round(m_srcPoly[j].X + m_delta * (m_normals[j].X + m_normals[j].Y * dx)),
-      Round(m_srcPoly[j].Y + m_delta * (m_normals[j].Y - m_normals[j].X * dx))));
+      Round(m_srcPoly[j].Y + m_delta * (m_normals[j].Y - m_normals[j].X * dx)));
+  SetOffsetZ(0, 0, m_srcPoly[j], pt);
+  m_destPoly.push_back(pt);
 }
 //------------------------------------------------------------------------------
 
 void ClipperOffset::DoMiter(int j, int k, double r)
 {
   double q = m_delta / r;
-  m_destPoly.push_back(IntPoint(Round(m_srcPoly[j].X + (m_normals[k].X + m_normals[j].X) * q),
-      Round(m_srcPoly[j].Y + (m_normals[k].Y + m_normals[j].Y) * q)));
+  IntPoint pt = IntPoint(Round(m_srcPoly[j].X + (m_normals[k].X + m_normals[j].X) * q),
+      Round(m_srcPoly[j].Y + (m_normals[k].Y + m_normals[j].Y) * q));
+  SetOffsetZ(0, 0, m_srcPoly[j], pt);
+  m_destPoly.push_back(pt);
 }
 //------------------------------------------------------------------------------
 
@@ -4038,16 +4199,20 @@ void ClipperOffset::DoRound(int j, int k)
   double X = m_normals[k].X, Y = m_normals[k].Y, X2;
   for (int i = 0; i < steps; ++i)
   {
-    m_destPoly.push_back(IntPoint(
+    IntPoint pt = IntPoint(
         Round(m_srcPoly[j].X + X * m_delta),
-        Round(m_srcPoly[j].Y + Y * m_delta)));
+        Round(m_srcPoly[j].Y + Y * m_delta));
+    SetOffsetZ(i, steps, m_srcPoly[j], pt);
+    m_destPoly.push_back(pt);
     X2 = X;
     X = X * m_cos - m_sin * Y;
     Y = X2 * m_sin + Y * m_cos;
   }
-  m_destPoly.push_back(IntPoint(
-  Round(m_srcPoly[j].X + m_normals[j].X * m_delta),
-  Round(m_srcPoly[j].Y + m_normals[j].Y * m_delta)));
+  IntPoint pt = IntPoint(
+    Round(m_srcPoly[j].X + m_normals[j].X * m_delta),
+    Round(m_srcPoly[j].Y + m_normals[j].Y * m_delta));
+  SetOffsetZ(steps, steps, m_srcPoly[j], pt);
+  m_destPoly.push_back(pt);
 }
 
 //------------------------------------------------------------------------------
@@ -4165,10 +4330,10 @@ double DistanceFromLineSqrd(
   const IntPoint& pt, const IntPoint& ln1, const IntPoint& ln2)
 {
   //The equation of a line in general form (Ax + By + C = 0)
-  //given 2 points (x¹,y¹) & (x²,y²) is ...
-  //(y¹ - y²)x + (x² - x¹)y + (y² - y¹)x¹ - (x² - x¹)y¹ = 0
-  //A = (y¹ - y²); B = (x² - x¹); C = (y² - y¹)x¹ - (x² - x¹)y¹
-  //perpendicular distance of point (x³,y³) = (Ax³ + By³ + C)/Sqrt(A² + B²)
+  //given 2 points (xï¿½,yï¿½) & (xï¿½,yï¿½) is ...
+  //(yï¿½ - yï¿½)x + (xï¿½ - xï¿½)y + (yï¿½ - yï¿½)xï¿½ - (xï¿½ - xï¿½)yï¿½ = 0
+  //A = (yï¿½ - yï¿½); B = (xï¿½ - xï¿½); C = (yï¿½ - yï¿½)xï¿½ - (xï¿½ - xï¿½)yï¿½
+  //perpendicular distance of point (xï¿½,yï¿½) = (Axï¿½ + Byï¿½ + C)/Sqrt(Aï¿½ + Bï¿½)
   //see http://en.wikipedia.org/wiki/Perpendicular_distance
   double A = double(ln1.Y - ln2.Y);
   double B = double(ln2.X - ln1.X);
@@ -4460,5 +4625,46 @@ std::ostream& operator <<(std::ostream &s, const Paths &p)
   return s;
 }
 //------------------------------------------------------------------------------
+
+#ifdef use_xyz
+//------------------------------------------------------------------------------
+// ZFill Strategies
+//------------------------------------------------------------------------------
+void ZFill::OnLeftIntermediate(IntPoint &bot, IntPoint &top, IntPoint &next, bool forward, IntPoint &pt) {
+
+}
+
+void ZFill::OnRightIntermediate(IntPoint &bot, IntPoint &top, IntPoint &next, bool forward, IntPoint &pt) {
+
+}
+
+void ZFill::OnLocalMin(IntPoint &right, IntPoint &bot, IntPoint &left, bool leftIsForward, IntPoint &pt) {
+
+}
+
+void ZFill::OnLocalMax(IntPoint &left, IntPoint &top, IntPoint &right, bool leftIsForward, IntPoint &pt) {
+
+}
+
+void ZFill::OnIntersection(IntPoint &e1bot, IntPoint &e1top, bool e1Left, bool e1Forward,
+                           IntPoint &e2bot, IntPoint &e2top, bool e2Left, bool e2Forward,
+                           const IntPoint& pt, cInt &z1, cInt &z2) {
+
+}
+void ZFill::BeginLoopReversal(IntPoint& last, IntPoint& first, cInt filler) {
+
+}
+void ZFill::ReverseEdge(IntPoint& first, IntPoint& second) {
+
+}
+void ZFill::FinishLoopReversal(IntPoint& last, IntPoint& first) {
+
+}
+void ZFill::OnOffset(int step, int steps, IntPoint& z, IntPoint& pt) {
+  //just return - points default to 0 z.
+  UNUSED(step); UNUSED(steps); UNUSED(z); UNUSED(pt);
+}
+
+#endif // use_xyz
 
 } //ClipperLib namespace

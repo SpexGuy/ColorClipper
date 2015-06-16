@@ -41,7 +41,7 @@
 //#define use_int32
 
 //use_xyz: adds a Z member to IntPoint. Adds a minor cost to perfomance.
-//#define use_xyz
+#define use_xyz
 
 //use_lines: Enables line clipping. Adds a very minor cost to performance.
 //#define use_lines
@@ -90,16 +90,52 @@ struct IntPoint {
 #else
   IntPoint(cInt x = 0, cInt y = 0): X(x), Y(y) {};
 #endif
-
-  friend inline bool operator== (const IntPoint& a, const IntPoint& b)
-  {
-    return a.X == b.X && a.Y == b.Y;
-  }
-  friend inline bool operator!= (const IntPoint& a, const IntPoint& b)
-  {
-    return a.X != b.X  || a.Y != b.Y; 
-  }
 };
+
+#ifdef use_xyz
+struct IntPoint2Z {
+  cInt X;
+  cInt Y;
+  cInt forwardZ;
+  cInt reverseZ;
+  IntPoint2Z(cInt x = 0, cInt y = 0, cInt fz = 0, cInt rz = 0) : X(x), Y(y), forwardZ(fz), reverseZ(rz) {};
+  IntPoint2Z(const IntPoint& pt, cInt fz, cInt rz) : X(pt.X), Y(pt.Y), forwardZ(fz), reverseZ(rz) {};
+};
+#endif
+
+inline bool operator== (const IntPoint& a, const IntPoint& b)
+{
+  return a.X == b.X && a.Y == b.Y;
+}
+inline bool operator== (const IntPoint& a, const IntPoint2Z& b)
+{
+  return a.X == b.X && a.Y == b.Y;
+}
+inline bool operator!= (const IntPoint& a, const IntPoint& b)
+{
+  return a.X != b.X  || a.Y != b.Y;
+}
+inline bool operator!= (const IntPoint& a, const IntPoint2Z& b)
+{
+  return a.X != b.X  || a.Y != b.Y;
+}
+inline bool operator== (const IntPoint2Z& a, const IntPoint& b)
+{
+  return a.X == b.X && a.Y == b.Y;
+}
+inline bool operator== (const IntPoint2Z& a, const IntPoint2Z& b)
+{
+  return a.X == b.X && a.Y == b.Y;
+}
+inline bool operator!= (const IntPoint2Z& a, const IntPoint& b)
+{
+  return a.X != b.X  || a.Y != b.Y;
+}
+inline bool operator!= (const IntPoint2Z& a, const IntPoint2Z& b)
+{
+  return a.X != b.X  || a.Y != b.Y;
+}
+
 //------------------------------------------------------------------------------
 
 typedef std::vector< IntPoint > Path;
@@ -122,7 +158,25 @@ struct DoublePoint
 //------------------------------------------------------------------------------
 
 #ifdef use_xyz
-typedef void (*ZFillCallback)(IntPoint& e1bot, IntPoint& e1top, IntPoint& e2bot, IntPoint& e2top, IntPoint& pt);
+class ZFill {
+public:
+  virtual void OnIntersection(IntPoint& e1bot, IntPoint& e1top, bool e1Left, bool e1Forward,
+                              IntPoint& e2bot, IntPoint& e2top, bool e2Left, bool e2Forward,
+                              const IntPoint& pt, cInt& z1, cInt& z2);
+  virtual void OnLeftIntermediate(IntPoint& bot, IntPoint& top, IntPoint& next, bool forward, IntPoint& pt);
+  virtual void OnRightIntermediate(IntPoint& bot, IntPoint& top, IntPoint& next, bool forward, IntPoint& pt);
+  virtual void OnLocalMin(IntPoint& right, IntPoint& bot, IntPoint& left, bool leftIsForward, IntPoint& pt);
+  virtual void OnLocalMax(IntPoint& left, IntPoint& top, IntPoint& right, bool leftIsForward, IntPoint& pt);
+  // Loop reversal happens in the following order:
+  // 1. BeginLoopReversal(most cw, most ccw, filler)
+  // 2. ReverseEdge(..) is called on each pair, moving clockwise
+  // 3. FinishLoopReversal(most cw, most ccw)
+  virtual void BeginLoopReversal(IntPoint& last, IntPoint& first, cInt filler);
+  virtual void ReverseEdge(IntPoint& first, IntPoint& second);
+  virtual void FinishLoopReversal(IntPoint& last, IntPoint& first);
+  virtual void OnOffset(int step, int steps, IntPoint& z, IntPoint& pt);
+  virtual ~ZFill() {}
+};
 #endif
 
 enum InitOptions {ioReverseSolution = 1, ioStrictlySimple = 2, ioPreserveCollinear = 4};
@@ -266,7 +320,7 @@ public:
   void StrictlySimple(bool value) {m_StrictSimple = value;};
   //set the callback function for z value filling on intersections (otherwise Z is 0)
 #ifdef use_xyz
-  void ZFillFunction(ZFillCallback zFillFunc);
+  void Callback(ZFill *zFill);
 #endif
 protected:
   void Reset();
@@ -288,7 +342,7 @@ private:
   bool             m_UsingPolyTree; 
   bool             m_StrictSimple;
 #ifdef use_xyz
-  ZFillCallback   m_ZFill; //custom callback 
+  ZFill           *m_ZFill; //custom callback 
 #endif
   void SetWindingCount(TEdge& edge);
   bool IsEvenOddFillType(const TEdge& edge) const;
@@ -312,7 +366,8 @@ private:
   void AddLocalMaxPoly(TEdge *e1, TEdge *e2, const IntPoint &pt);
   OutPt* AddLocalMinPoly(TEdge *e1, TEdge *e2, const IntPoint &pt);
   OutRec* GetOutRec(int idx);
-  void AppendPolygon(TEdge *e1, TEdge *e2);
+  void ReversePolyPtLinks(OutPt *pp, cInt fillZ = 0);
+  void AppendPolygon(TEdge *e1, TEdge *e2, cInt fillZ);
   void IntersectEdges(TEdge *e1, TEdge *e2, IntPoint &pt);
   OutRec* CreateOutRec();
   OutPt* AddOutPt(TEdge *e, const IntPoint &pt);
@@ -341,7 +396,11 @@ private:
   void FixupFirstLefts1(OutRec* OldOutRec, OutRec* NewOutRec);
   void FixupFirstLefts2(OutRec* OldOutRec, OutRec* NewOutRec);
 #ifdef use_xyz
-  void SetZ(IntPoint& pt, TEdge& e1, TEdge& e2);
+  //void SetZ(IntPoint& pt, TEdge& e1, TEdge& e2);
+  void SetIntermediateZ(TEdge *e, IntPoint& pt);
+  void SetLocalMaxZ(TEdge* e1, TEdge* e2, IntPoint& pt, cInt& fillZ);
+  void SetLocalMinZ(TEdge* left, TEdge* right, IntPoint& pt);
+  void SetIntersectionZ(TEdge* e1, TEdge* e2, IntPoint& p1, IntPoint& p2);
 #endif
 };
 //------------------------------------------------------------------------------
@@ -356,6 +415,9 @@ public:
   void Execute(Paths& solution, double delta);
   void Execute(PolyTree& solution, double delta);
   void Clear();
+#ifdef use_xyz
+  void Callback(ZFill *zFill);
+#endif
   double MiterLimit;
   double ArcTolerance;
 private:
@@ -367,6 +429,9 @@ private:
   double m_miterLim, m_StepsPerRad;
   IntPoint m_lowest;
   PolyNode m_polyNodes;
+#ifdef use_xyz
+  ZFill *m_ZFill;     //see above
+#endif
 
   void FixOrientations();
   void DoOffset(double delta);
@@ -374,6 +439,9 @@ private:
   void DoSquare(int j, int k);
   void DoMiter(int j, int k, double r);
   void DoRound(int j, int k);
+#ifdef use_xyz
+  void SetOffsetZ(int step, int steps, IntPoint& source, IntPoint& dest);
+#endif
 };
 //------------------------------------------------------------------------------
 
