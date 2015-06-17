@@ -3719,11 +3719,18 @@ void Clipper::SetIntersectionZ(TEdge *e1, TEdge *e2, const IntPoint& pt, IntPoin
                           pt, p1.forwardZ, p1.reverseZ, p2.forwardZ, p2.reverseZ);
 }
 void Clipper::SetIntermediateZ(TEdge *e, IntPoint2Z& pt) {
-  assert(e->NextInLML);
-  m_ZFill->OnPoint(e->Bot, e->Top, e->NextInLML->Top, e->LMLIsForward, pt);
+  if (e->Side == esLeft) {
+    m_ZFill->OnPoint(e->Bot, e->Top, e->NextInLML->Top, e->LMLIsForward, pt);
+  } else {
+    m_ZFill->OnPoint(e->NextInLML->Top, e->Top, e->Bot, e->LMLIsForward, pt);
+  }
 }
 void Clipper::SetLocalMaxZ(TEdge *e1, TEdge *e2, IntPoint2Z& pt) {
-  m_ZFill->OnPoint(e1->Bot, e1->Top, e2->Bot, e1->LMLIsForward, pt);
+  if (e1->Side == esLeft) {
+    m_ZFill->OnPoint(e2->Bot, e1->Top, e1->Bot, e1->LMLIsForward, pt);
+  } else {
+    m_ZFill->OnPoint(e1->Bot, e1->Top, e2->Bot, e1->LMLIsForward, pt);
+  }
 }
 void Clipper::SetLocalMinZ(TEdge *e1, TEdge *e2, IntPoint2Z& pt) {
   m_ZFill->OnPoint(e1->Top, e1->Bot, e2->Top, e1->LMLIsForward, pt);
