@@ -701,6 +701,23 @@ void IntersectPoint(TEdge &Edge1, TEdge &Edge2, IntPoint &ip)
 }
 //------------------------------------------------------------------------------
 
+void ReversePolyPtLinks(OutPt *pp)
+{
+  if (!pp) return;
+  OutPt *pp1, *pp2;
+  pp1 = pp;
+  do {
+#ifdef use_xyz
+    pp1->Pt.reverse();
+#endif
+    pp2 = pp1->Next;
+    pp1->Next = pp1->Prev;
+    pp1->Prev = pp2;
+    pp1 = pp2;
+  } while( pp1 != pp );
+}
+//------------------------------------------------------------------------------
+
 void DisposeOutPts(OutPt*& pp)
 {
   if (pp == 0) return;
@@ -2297,23 +2314,6 @@ OutRec* Clipper::GetOutRec(int Idx)
   while (outrec != m_PolyOuts[outrec->Idx])
     outrec = m_PolyOuts[outrec->Idx];
   return outrec;
-}
-//------------------------------------------------------------------------------
-
-void Clipper::ReversePolyPtLinks(OutPt *pp)
-{
-  if (!pp) return;
-  OutPt *pp1, *pp2;
-  pp1 = pp;
-  do {
-#ifdef use_xyz
-    pp1->Pt.reverse();
-#endif
-    pp2 = pp1->Next;
-    pp1->Next = pp1->Prev;
-    pp1->Prev = pp2;
-    pp1 = pp2;
-  } while( pp1 != pp );
 }
 //------------------------------------------------------------------------------
 
