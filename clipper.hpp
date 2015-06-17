@@ -101,12 +101,12 @@ struct IntPoint {
 struct IntPoint2Z {
   cInt X;
   cInt Y;
-  cInt forwardZ;
+  cInt correctZ;
   cInt reverseZ;
-  IntPoint2Z(cInt x = 0, cInt y = 0, cInt fz = 0, cInt rz = 0) : X(x), Y(y), forwardZ(fz), reverseZ(rz) {};
-  IntPoint2Z(const IntPoint& pt) : X(pt.X), Y(pt.Y), forwardZ(pt.Z), reverseZ(pt.Z) {};
-  void reverse() { std::swap(forwardZ, reverseZ); }
-  cInt getZ() const { return forwardZ; }
+  IntPoint2Z(cInt x = 0, cInt y = 0, cInt fz = 0, cInt rz = 0) : X(x), Y(y), correctZ(fz), reverseZ(rz) {};
+  IntPoint2Z(const IntPoint& pt) : X(pt.X), Y(pt.Y), correctZ(pt.Z), reverseZ(pt.Z) {};
+  inline void reverse() { std::swap(correctZ, reverseZ); }
+  inline cInt getZ() const { return correctZ; }
 };
 typedef IntPoint2Z OutCoord;
 #else
@@ -175,7 +175,8 @@ public:
   virtual void OnIntersection(IntPoint& e1bot, IntPoint& e1top, bool e1Forward,
                               IntPoint& e2bot, IntPoint& e2top, bool e2Forward,
                               const IntPoint& pt, cInt& z1f, cInt& z1r, cInt& z2f, cInt& z2r);
-  virtual void OnPoint(IntPoint &prev, IntPoint &curr, IntPoint &next, bool forward, IntPoint2Z &pt);
+  // Points here are passed in the same order they were in the original polygon
+  virtual void OnPoint(IntPoint &prev, IntPoint &curr, IntPoint &next, IntPoint2Z &pt);
   virtual void OnOffset(int step, int steps, IntPoint& z, IntPoint& pt);
   virtual ~ZFill() {}
 };

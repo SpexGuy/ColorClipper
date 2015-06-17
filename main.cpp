@@ -25,14 +25,9 @@ public:
         SplitEdge(e1bot, e1top, e1Forward, pt, z1f, z2r);
         SplitEdge(e2bot, e2top, e2Forward, pt, z2f, z1r);
     }
-    virtual void OnPoint(IntPoint& prev, IntPoint& curr, IntPoint& next, bool forward, IntPoint2Z& pt) override {
-        if (forward) {
-            pt.forwardZ = curr.Z;
-            pt.reverseZ = ReverseZ(prev.Z);
-        } else {
-            pt.forwardZ = ReverseZ(next.Z);
-            pt.reverseZ = curr.Z;
-        }
+    virtual void OnPoint(IntPoint& prev, IntPoint& curr, IntPoint& next, IntPoint2Z& pt) override {
+        pt.correctZ = curr.Z;
+        pt.reverseZ = ReverseZ(next.Z);
     }
 
     virtual void OnOffset(int step, int steps, IntPoint& source, IntPoint& dest) override {

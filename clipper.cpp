@@ -2433,9 +2433,6 @@ OutRec* Clipper::CreateOutRec()
 OutPt* Clipper::AddOutPt(TEdge *e, OutCoord &pt)
 {
   bool ToFront = (e->Side == esLeft);
-#ifdef use_xyz
-  if (!ToFront) pt.reverse();
-#endif
   if(  e->OutIdx < 0 )
   {
     OutRec *outRec = CreateOutRec();
@@ -3716,24 +3713,36 @@ void Clipper::JoinCommonEdges()
 void Clipper::SetIntersectionZ(TEdge *e1, TEdge *e2, const IntPoint& pt, IntPoint2Z& p1, IntPoint2Z& p2) {
   m_ZFill->OnIntersection(e1->Bot, e1->Top, e1->LMLIsForward,
                           e2->Bot, e2->Top, e2->LMLIsForward,
-                          pt, p1.forwardZ, p1.reverseZ, p2.forwardZ, p2.reverseZ);
+                          pt, p1.correctZ, p1.reverseZ, p2.correctZ, p2.reverseZ);
+  if (e1->Side == esRight) p1.reverse();
+  if (e2->Side == esRight) p2.reverse();
 }
 void Clipper::SetIntermediateZ(TEdge *e, IntPoint2Z& pt) {
-  if (e->Side == esLeft) {
-    m_ZFill->OnPoint(e->Bot, e->Top, e->NextInLML->Top, e->LMLIsForward, pt);
+  if (e->Next == e->NextInLML) {
+    m_ZFill->OnPoint(e->Bot, e->Top, e->NextInLML->Top, pt);
+    if (e->Side != esLeft) pt.reverse();
   } else {
-    m_ZFill->OnPoint(e->NextInLML->Top, e->Top, e->Bot, e->LMLIsForward, pt);
+    m_ZFill->OnPoint(e->NextInLML->Top, e->Top, e->Bot, pt);
+    if (e->Side != esRight) pt.reverse();
   }
 }
 void Clipper::SetLocalMaxZ(TEdge *e1, TEdge *e2, IntPoint2Z& pt) {
-  if (e1->Side == esLeft) {
-    m_ZFill->OnPoint(e2->Bot, e1->Top, e1->Bot, e1->LMLIsForward, pt);
+  if (e1->LMLIsForward) {
+    m_ZFill->OnPoint(e1->Bot, e1->Top, e2->Bot, pt);
+    if (e1->Side != esLeft) pt.reverse();
   } else {
-    m_ZFill->OnPoint(e1->Bot, e1->Top, e2->Bot, e1->LMLIsForward, pt);
+    m_ZFill->OnPoint(e2->Bot, e1->Top, e1->Bot, pt);
+    if (e1->Side != esRight) pt.reverse();
   }
 }
 void Clipper::SetLocalMinZ(TEdge *e1, TEdge *e2, IntPoint2Z& pt) {
-  m_ZFill->OnPoint(e1->Top, e1->Bot, e2->Top, e1->LMLIsForward, pt);
+  if (e1->LMLIsForward) {
+    m_ZFill->OnPoint(e2->Top, e1->Bot, e1->Top, pt);
+    if (e1->Side != esLeft) pt.reverse();
+  } else {
+    m_ZFill->OnPoint(e1->Top, e1->Bot, e2->Top, pt);
+    if (e1->Side != esRight) pt.reverse();
+  }
 }
 #endif
 
@@ -4680,7 +4689,7 @@ std::ostream& operator <<(std::ostream &s, const Paths &p)
 //------------------------------------------------------------------------------
 // ZFill Strategies
 //------------------------------------------------------------------------------
-void ZFill::OnPoint(IntPoint &prev, IntPoint &curr, IntPoint &next, bool forward, IntPoint2Z &pt) {
+void ZFill::OnPoint(IntPoint &prev, IntPoint &curr, IntPoint &next, IntPoint2Z &pt) {
 
 }
 
