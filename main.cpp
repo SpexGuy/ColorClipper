@@ -1,4 +1,5 @@
 #include <iostream>
+#include <algorithm>
 #include <assert.h>
 #include "clipper.hpp"
 
@@ -97,6 +98,7 @@ int main() {
                               << IntPoint( 500,  300, 1150)
                               << IntPoint( 300,  500, 1250)
                               << IntPoint( 100,  300, 1350);
+    std::reverse(intersectionTestSmallPart.begin(), intersectionTestSmallPart.end());
     intersectionTest << intersectionTestLargePart << intersectionTestSmallPart;
 
     clpr.AddPaths(intersectionTest, ptSubject, true);
