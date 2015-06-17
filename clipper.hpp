@@ -40,7 +40,7 @@
 //improve performance but coordinate values are limited to the range +/- 46340
 //#define use_int32
 
-//use_xyz: adds a Z member to IntPoint. Adds a minor cost to perfomance.
+//use_xyz: adds a Z member to IntPoint. Adds a cost to performance.
 #define use_xyz
 
 //use_lines: Enables line clipping. Adds a very minor cost to performance.
@@ -81,12 +81,17 @@ enum PolyFillType { pftEvenOdd, pftNonZero, pftPositive, pftNegative };
 
 #endif
 
+#ifdef use_xyz
+struct IntPoint2Z;
+#endif
+
 struct IntPoint {
   cInt X;
   cInt Y;
 #ifdef use_xyz
   cInt Z;
   IntPoint(cInt x = 0, cInt y = 0, cInt z = 0): X(x), Y(y), Z(z) {};
+  IntPoint(const IntPoint2Z& pt);
 #else
   IntPoint(cInt x = 0, cInt y = 0): X(x), Y(y) {};
 #endif
@@ -99,10 +104,13 @@ struct IntPoint2Z {
   cInt forwardZ;
   cInt reverseZ;
   IntPoint2Z(cInt x = 0, cInt y = 0, cInt fz = 0, cInt rz = 0) : X(x), Y(y), forwardZ(fz), reverseZ(rz) {};
-  IntPoint2Z(const IntPoint& pt, cInt fz, cInt rz) : X(pt.X), Y(pt.Y), forwardZ(fz), reverseZ(rz) {};
+  IntPoint2Z(const IntPoint& pt) : X(pt.X), Y(pt.Y), forwardZ(pt.Z), reverseZ(pt.Z) {};
   void reverse() { std::swap(forwardZ, reverseZ); }
-  cInt getZ() { return forwardZ; }
+  cInt getZ() const { return forwardZ; }
 };
+typedef IntPoint2Z OutCoord;
+#else
+typedef IntPoint OutCoord;
 #endif
 
 inline bool operator== (const IntPoint& a, const IntPoint& b)
@@ -168,13 +176,6 @@ public:
                               IntPoint& e2bot, IntPoint& e2top, bool e2Forward,
                               const IntPoint& pt, cInt& z1f, cInt& z1r, cInt& z2f, cInt& z2r);
   virtual void OnPoint(IntPoint &prev, IntPoint &curr, IntPoint &next, bool forward, IntPoint2Z &pt);
-  // Loop reversal happens in the following order:
-  // 1. BeginLoopReversal(most cw, most ccw, filler)
-  // 2. ReverseEdge(..) is called on each pair, moving clockwise
-  // 3. FinishLoopReversal(most cw, most ccw)
-  virtual void BeginLoopReversal(IntPoint& last, IntPoint& first, cInt filler);
-  virtual void ReverseEdge(IntPoint& first, IntPoint& second);
-  virtual void FinishLoopReversal(IntPoint& last, IntPoint& first);
   virtual void OnOffset(int step, int steps, IntPoint& z, IntPoint& pt);
   virtual ~ZFill() {}
 };
@@ -367,11 +368,11 @@ private:
   void AddLocalMaxPoly(TEdge *e1, TEdge *e2, const IntPoint &pt);
   OutPt* AddLocalMinPoly(TEdge *e1, TEdge *e2, const IntPoint &pt);
   OutRec* GetOutRec(int idx);
-  void ReversePolyPtLinks(OutPt *pp, cInt fillZ = 0);
-  void AppendPolygon(TEdge *e1, TEdge *e2, cInt fillZ);
+  void ReversePolyPtLinks(OutPt *pp);
+  void AppendPolygon(TEdge *e1, TEdge *e2);
   void IntersectEdges(TEdge *e1, TEdge *e2, IntPoint &pt);
   OutRec* CreateOutRec();
-  OutPt* AddOutPt(TEdge *e, const IntPoint &pt);
+  OutPt* AddOutPt(TEdge *e, OutCoord &pt);
   void DisposeAllOutRecs();
   void DisposeOutRec(PolyOutList::size_type index);
   bool ProcessIntersections(const cInt topY);

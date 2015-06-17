@@ -6,6 +6,7 @@ using namespace std;
 using namespace ClipperLib;
 
 int main() {
+    #ifdef use_xyz
     cout << "Hello, World!" << endl;
     Clipper clpr;
     Path figure8;
@@ -30,9 +31,10 @@ int main() {
             cout << "    (" << pt.X << ", " << pt.Y << ", " << pt.Z << ")" << endl;
         }
     }
+    #endif
     return 0;
 }
-
+#ifdef use_xyz
 class FollowingZFill : public ZFill {
 public:
     virtual void OnIntersection(IntPoint& e1bot, IntPoint& e1top, bool e1Forward,
@@ -61,24 +63,6 @@ public:
         }
     }
 
-    virtual void BeginLoopReversal(IntPoint& last, IntPoint& first, cInt filler) override {
-        assert(firstWas == 0);
-        firstWas = first.Z;
-        if (filler) {
-            first.Z = ReverseZ(filler);
-        } else {
-            first.Z = ReverseZ(last.Z);
-        }
-    }
-    virtual void ReverseEdge(IntPoint& first, IntPoint& second) override {
-        cInt firstWill = second.Z;
-        second.Z = ReverseZ(firstWas);
-        firstWas = firstWill;
-    }
-    virtual void FinishLoopReversal(IntPoint& last, IntPoint& first) override {
-        firstWas = 0;
-    }
-
     virtual void OnOffset(int step, int steps, IntPoint& source, IntPoint& dest) override {
         dest.Z = Clone(source.Z);
     }
@@ -88,7 +72,6 @@ protected:
     virtual cInt Clone(cInt z) {return z;}
     virtual cInt StripBegin(cInt z, IntPoint& from, IntPoint& to, const IntPoint& pt) {return z;}
     virtual cInt StripEnd(cInt z, IntPoint& from, IntPoint& to, const IntPoint& pt) {return z;}
-    cInt firstWas = 0;
 
 private:
     void SplitEdge(IntPoint& bot, IntPoint& top, bool forward, const IntPoint& pt, cInt& zf, cInt& zr) {
@@ -105,3 +88,4 @@ private:
         }
     }
 };
+#endif
