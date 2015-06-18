@@ -2697,10 +2697,16 @@ void Clipper::ProcessHorizontal(TEdge *horzEdge, bool isTopOfScanbeam)
 
     if (horzEdge->NextInLML && IsHorizontal(*horzEdge->NextInLML))
     {
+      // TODO: This would be much simpler if UpdateEdgeIntoAEL was called after AddOutPt. Is that possible?
+#ifdef use_xyz
+      TEdge* lastEdge = horzEdge; // remember the edge for Z setting later
+#endif
       UpdateEdgeIntoAEL(horzEdge);
-      //COLOR: Deal with horizontal edge shit here
       if (horzEdge->OutIdx >= 0) {
         OutCoord oc(horzEdge->Bot);
+#ifdef use_xyz
+        SetIntermediateZ(lastEdge, oc);
+#endif
         AddOutPt(horzEdge, oc);
       }
       GetHorzDirection(*horzEdge, dir, horzLeft, horzRight);
@@ -2990,12 +2996,15 @@ void Clipper::ProcessEdgesAtTopOfScanbeam(const cInt topY)
       //2. promote horizontal edges, otherwise update Curr.X and Curr.Y ...
       if (IsIntermediate(e, topY) && IsHorizontal(*e->NextInLML))
       {
+#ifdef use_xyz
+        //TODO: This would be a lot simpler if we could UpdateEdgeIntoAEL after AddOutPt. Can we?
+        TEdge* lastEdge = e; // remember for Z setting
+#endif
         UpdateEdgeIntoAEL(e);
         if (e->OutIdx >= 0) {
           OutCoord pt(e->Bot);
 #ifdef use_xyz
-          //COLOR: This is wrong, since it's using e->bot
-          SetIntermediateZ(e, pt);
+          SetIntermediateZ(lastEdge, pt);
 #endif
           AddOutPt(e, pt);
         }
