@@ -70,6 +70,7 @@ int main() {
     cout << "Hello, World!" << endl;
     TestFollower zFill;
     Clipper clpr;
+    clpr.PreserveCollinear(true);
     clpr.Callback(&zFill);
     Path figure8;
     figure8.push_back(IntPoint(2010,1010,150));
@@ -95,8 +96,41 @@ int main() {
                               << IntPoint( 100,  300, 1350);
     std::reverse(intersectionTestSmallPart.begin(), intersectionTestSmallPart.end());
     intersectionTest << intersectionTestLargePart << intersectionTestSmallPart;
+    Path horizontalEdgeTest;
+    horizontalEdgeTest << IntPoint( 600, 800,  150)
+                       << IntPoint( 700, 800,  250)
+                       << IntPoint( 800, 800,  350)
 
-    clpr.AddPaths(intersectionTest, ptSubject, true);
+                       << IntPoint( 800, 600,  450)
+                       << IntPoint( 900, 600,  550)
+                       << IntPoint(1000, 600,  650)
+
+                       << IntPoint(1000, 400,  750)
+                       << IntPoint( 900, 400,  850)
+                       << IntPoint( 800, 400,  950)
+
+                       << IntPoint( 800, 200, 1050)
+                       << IntPoint( 700, 200, 1150)
+                       << IntPoint( 600, 200, 1250)
+
+                       << IntPoint( 600, 100, 1350)
+                       << IntPoint( 500, 100, 1450)
+                       << IntPoint( 400, 100, 1550)
+
+                       << IntPoint( 400, 300, 1650)
+                       << IntPoint( 300, 300, 1750)
+                       << IntPoint( 200, 300, 1850)
+
+                       << IntPoint( 200, 500, 1950)
+                       << IntPoint( 300, 500, 2050)
+                       << IntPoint( 400, 500, 2150)
+
+                       << IntPoint( 400, 700, 2250)
+                       << IntPoint( 500, 700, 2350)
+                       << IntPoint( 600, 700, 2450);
+//    ReversePath(horizontalEdgeTest);
+
+    clpr.AddPath(horizontalEdgeTest, ptSubject, true);
     Paths solution;
     clpr.Execute(ctUnion, solution);
     for (Path p : solution) {
