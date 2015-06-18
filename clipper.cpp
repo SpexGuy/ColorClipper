@@ -1803,7 +1803,8 @@ void Clipper::AddLocalMaxPoly(TEdge *e1, TEdge *e2, const IntPoint &Pt)
   SetLocalMaxZ(e1, e2, pt);
 #endif
   AddOutPt( e1, pt );
-  if (e2->WindDelta == 0) AddOutPt(e2, pt);
+  if (e2->WindDelta == 0)
+    AddOutPt(e2, pt);
   if( e1->OutIdx == e2->OutIdx )
   {
     e1->OutIdx = Unassigned;
@@ -2719,6 +2720,7 @@ void Clipper::ProcessHorizontal(TEdge *horzEdge, bool isTopOfScanbeam)
     if(horzEdge->OutIdx >= 0)
     {
       OutCoord ocd(horzEdge->Top);
+      SetIntermediateZ(horzEdge, ocd);
       OutPt* op1 = AddOutPt( horzEdge, ocd);
       if (isTopOfScanbeam) AddGhostJoin(op1, horzEdge->Bot);
       UpdateEdgeIntoAEL(horzEdge);
@@ -2750,7 +2752,7 @@ void Clipper::ProcessHorizontal(TEdge *horzEdge, bool isTopOfScanbeam)
     else
       UpdateEdgeIntoAEL(horzEdge); 
   }
-  else // maxima point but no pair
+  else // maxima point but no pair. This means lines.
   {
     if (horzEdge->OutIdx >= 0) {
       OutCoord oc(horzEdge->Top);

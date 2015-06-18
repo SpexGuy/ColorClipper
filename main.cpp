@@ -128,7 +128,7 @@ int main() {
                        << IntPoint( 400, 700, 2250)
                        << IntPoint( 500, 700, 2350)
                        << IntPoint( 600, 700, 2450);
-//    ReversePath(horizontalEdgeTest);
+    ReversePath(horizontalEdgeTest);
 
     clpr.AddPath(horizontalEdgeTest, ptSubject, true);
     Paths solution;
