@@ -775,7 +775,6 @@ inline void ReverseHorizontal(TEdge &e)
   //adjoining lower edge. [Helpful in the ProcessHorizontal() method.]
   Swap(e.Top.X, e.Bot.X);
 #ifdef use_xyz
-  //COLOR: checkitout
   Swap(e.Top.Z, e.Bot.Z);
 #endif
 }
@@ -942,6 +941,7 @@ TEdge* ClipperBase::ProcessBound(TEdge* E, bool NextIsForward)
   TEdge *Result = E;
   TEdge *Horz = 0;
 
+#ifdef use_lines
   if (E->OutIdx == Skip)
   {
     //if edges still remain in the current bound beyond the skip edge then
@@ -981,6 +981,7 @@ TEdge* ClipperBase::ProcessBound(TEdge* E, bool NextIsForward)
     }
     return Result;
   }
+#endif
 
   TEdge *EStart;
 
@@ -1946,6 +1947,7 @@ void Clipper::InsertLocalMinimaIntoAEL(const cInt botY)
         //if the horizontal Rb and a 'ghost' horizontal overlap, then convert
         //the 'ghost' join to a real join ready for later ...
         if (HorzSegmentsOverlap(jr->OutPt1->Pt.X, jr->OffPt.X, rb->Bot.X, rb->Top.X))
+          //COLOR? - Late Horizontal Join
           AddJoin(jr->OutPt1, Op1, jr->OffPt);
       }
     }
@@ -1982,6 +1984,7 @@ void Clipper::InsertLocalMinimaIntoAEL(const cInt botY)
         {
           //nb: For calculating winding counts etc, IntersectEdges() assumes
           //that param1 will be to the Right of param2 ABOVE the intersection ...
+          //COLOR: Think about this later, since it produces points.
           IntersectEdges(rb , e , lb->Curr); //order important here
           e = e->NextInAEL;
         }
@@ -2676,18 +2679,19 @@ void Clipper::ProcessHorizontal(TEdge *horzEdge, bool isTopOfScanbeam)
 
           if (horzEdge->OutIdx >= 0)
           {
-            //COLOR: Deal with horizontal shit here
             OutCoord oc(horzEdge->Top);
+            SetLocalMaxZ(horzEdge, e,oc);
             OutPt* op1 = AddOutPt(horzEdge, oc);
             TEdge* eNextHorz = m_SortedEdges;
-            while (eNextHorz)
+            while (eNextHorz) // iterate through horizontal edges from other local maxima checking for joins
             {
               if (eNextHorz->OutIdx >= 0 &&
                 HorzSegmentsOverlap(horzEdge->Bot.X,
                 horzEdge->Top.X, eNextHorz->Bot.X, eNextHorz->Top.X))
               {
-                OutCoord oc(eNextHorz->Bot);
-                OutPt* op2 = AddOutPt(eNextHorz, oc);
+                //COLOR: Join Horizontal
+                OutCoord ocd(eNextHorz->Bot);
+                OutPt* op2 = AddOutPt(eNextHorz, ocd);
                 AddJoin(op2, op1, eNextHorz->Top);
               }
               eNextHorz = eNextHorz->NextInSEL;
