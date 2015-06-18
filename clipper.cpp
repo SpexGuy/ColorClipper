@@ -937,7 +937,6 @@ TEdge* FindNextLocMin(TEdge* E)
 
 TEdge* ClipperBase::ProcessBound(TEdge* E, bool NextIsForward)
 {
-  //COLOR: Must figure out horizontals here and set LMLIsForward accordingly
   TEdge *Result = E;
   TEdge *Horz = 0;
 
@@ -1799,7 +1798,6 @@ OutPt* Clipper::AddLocalMinPoly(TEdge *e1, TEdge *e2, const IntPoint &Pt)
 
 void Clipper::AddLocalMaxPoly(TEdge *e1, TEdge *e2, const IntPoint &Pt)
 {
-  //COLOR: Local max
   OutCoord pt(Pt);
 #ifdef use_xyz
   SetLocalMaxZ(e1, e2, pt);
@@ -1947,7 +1945,7 @@ void Clipper::InsertLocalMinimaIntoAEL(const cInt botY)
         //if the horizontal Rb and a 'ghost' horizontal overlap, then convert
         //the 'ghost' join to a real join ready for later ...
         if (HorzSegmentsOverlap(jr->OutPt1->Pt.X, jr->OffPt.X, rb->Bot.X, rb->Top.X))
-          //COLOR? - Late Horizontal Join
+          //COLOR:? - Late Horizontal Join, no new OutPoint
           AddJoin(jr->OutPt1, Op1, jr->OffPt);
       }
     }
@@ -2020,28 +2018,6 @@ void Clipper::DeleteFromSEL(TEdge *e)
   e->PrevInSEL = 0;
 }
 //------------------------------------------------------------------------------
-
-#ifdef use_xyz
-//void Clipper::SetZ(IntPoint& pt, TEdge& e1, TEdge& e2)
-//{
-//  //Old implementation (borked)
-//  pt.Z = 0;
-//  //put the 'preferred' point as first parameter ...
-//  //COLOR: this is wrong, definitely.
-//  if (e1.OutIdx < 0)
-//    m_ZFill->OnIntersection(e1.Bot, e1.Top, e2.Bot, e2.Top, pt); //outside a path so presume entering
-//  else
-//    m_ZFill->OnIntersection(e1.Top, e1.Bot, e2.Top, e2.Bot, pt); //inside a path so presume exiting
-//  //COLOR: fix edge order
-////  if (pt.Z != 0 || !m_ZFill) return;
-////  else if (pt == e1.Bot) pt.Z = e1.Bot.Z;
-////  else if (pt == e1.Top) pt.Z = e1.Top.Z;
-////  else if (pt == e2.Bot) pt.Z = e2.Bot.Z;
-////  else if (pt == e2.Top) pt.Z = e2.Top.Z;
-////  else (*m_ZFill)(e1.Bot, e1.Top, e2.Bot, e2.Top, pt);
-//}
-//------------------------------------------------------------------------------
-#endif
 
 void Clipper::IntersectEdges(TEdge *e1, TEdge *e2, IntPoint &Pt)
 {
@@ -2165,8 +2141,7 @@ void Clipper::IntersectEdges(TEdge *e1, TEdge *e2, IntPoint &Pt)
     if ((e1Wc != 0 && e1Wc != 1) || (e2Wc != 0 && e2Wc != 1) ||
       (e1->PolyTyp != e2->PolyTyp && m_ClipType != ctXor) )
     {
-      //COLOR: Do I need something here?
-      AddLocalMaxPoly(e1, e2, Pt); 
+      AddLocalMaxPoly(e1, e2, Pt);
     }
     else
     {
@@ -2750,6 +2725,7 @@ void Clipper::ProcessHorizontal(TEdge *horzEdge, bool isTopOfScanbeam)
         (ePrev->OutIdx >= 0 && ePrev->Curr.Y > ePrev->Top.Y &&
         SlopesEqual(*horzEdge, *ePrev, m_UseFullRange)))
       {
+        //COLOR: Join
         OutCoord oc(horzEdge->Bot);
         OutPt* op2 = AddOutPt(ePrev, oc);
         AddJoin(op1, op2, horzEdge->Top);
@@ -2759,6 +2735,7 @@ void Clipper::ProcessHorizontal(TEdge *horzEdge, bool isTopOfScanbeam)
         eNext->OutIdx >= 0 && eNext->Curr.Y > eNext->Top.Y &&
         SlopesEqual(*horzEdge, *eNext, m_UseFullRange))
       {
+        //COLOR: Join
         OutCoord oc(horzEdge->Bot);
         OutPt* op2 = AddOutPt(eNext, oc);
         AddJoin(op1, op2, horzEdge->Top);
@@ -2767,7 +2744,7 @@ void Clipper::ProcessHorizontal(TEdge *horzEdge, bool isTopOfScanbeam)
     else
       UpdateEdgeIntoAEL(horzEdge); 
   }
-  else
+  else // maxima point but no pair
   {
     if (horzEdge->OutIdx >= 0) {
       OutCoord oc(horzEdge->Top);
@@ -3017,7 +2994,7 @@ void Clipper::ProcessEdgesAtTopOfScanbeam(const cInt topY)
         if (e->OutIdx >= 0) {
           OutCoord pt(e->Bot);
 #ifdef use_xyz
-          //COLOR: This might be wrong, since it's using e->bot
+          //COLOR: This is wrong, since it's using e->bot
           SetIntermediateZ(e, pt);
 #endif
           AddOutPt(e, pt);
