@@ -103,8 +103,8 @@ struct IntPoint2Z {
   cInt Y;
   cInt correctZ;
   cInt reverseZ;
-  IntPoint2Z(cInt x = 0, cInt y = 0, cInt fz = 0, cInt rz = 0) : X(x), Y(y), correctZ(fz), reverseZ(rz) {};
-  IntPoint2Z(const IntPoint& pt) : X(pt.X), Y(pt.Y), correctZ(pt.Z), reverseZ(pt.Z) {};
+  IntPoint2Z(cInt x = 0, cInt y = 0, cInt cz = 0, cInt rz = 0) : X(x), Y(y), correctZ(cz), reverseZ(rz) {};
+  IntPoint2Z(const IntPoint& pt) : X(pt.X), Y(pt.Y), correctZ(0), reverseZ(0) {};
   inline void reverse() { std::swap(correctZ, reverseZ); }
   inline cInt getZ() const { return correctZ; }
 };
