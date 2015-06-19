@@ -1782,7 +1782,7 @@ OutPt* Clipper::AddLocalMinPoly(TEdge *e1, TEdge *e2, const IntPoint &Pt)
     else
         prevE = e->PrevInAEL;
   }
-  //The edge before this in AEL is emitting and coincides with this line and <nonzero WindDelta on both>
+  //The edge before this in AEL is contributing and coincides with this line
   if (prevE && prevE->OutIdx >= 0 &&
       (TopX(*prevE, Pt.Y) == TopX(*e, Pt.Y)) &&
       SlopesEqual(*e, *prevE, m_UseFullRange) &&
@@ -3058,7 +3058,7 @@ void Clipper::ProcessEdgesAtTopOfScanbeam(const cInt topY)
       //if output polygons share an edge, they'll need joining later ...
       TEdge* ePrev = e->PrevInAEL;
       TEdge* eNext = e->NextInAEL;
-      //ePrev exists and overlaps e (and then continues) and both have out polygons and both are not lines
+      //ePrev exists and overlaps e (and then continues) and both are contributing and both are not lines
       if (ePrev && ePrev->Curr.X == e->Bot.X &&
         ePrev->Curr.Y == e->Bot.Y && op &&
         ePrev->OutIdx >= 0 && ePrev->Curr.Y > ePrev->Top.Y &&
