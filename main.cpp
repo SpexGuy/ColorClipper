@@ -63,15 +63,7 @@ protected:
     virtual cInt StripEnd(cInt z, IntPoint& from, IntPoint& to, const IntPoint& pt) {return z+10;}
 };
 
-#endif
-
-int main() {
-    #ifdef use_xyz
-    cout << "Hello, World!" << endl;
-    TestFollower zFill;
-    Clipper clpr;
-    clpr.PreserveCollinear(true);
-    clpr.Callback(&zFill);
+void figure8Test(Paths &test) {
     Path figure8;
     figure8.push_back(IntPoint(2010,1010,150));
     figure8.push_back(IntPoint(4020,3020,250));
@@ -79,7 +71,10 @@ int main() {
     figure8.push_back(IntPoint(4040,1040,450));
     figure8.push_back(IntPoint(2050,3050,550));
     figure8.push_back(IntPoint(1060,2060,650));
-    Paths intersectionTest;
+    test << figure8;
+}
+
+void intersectionTest(Paths &test) {
     Path intersectionTestLargePart;
     intersectionTestLargePart << IntPoint( 300,  300,  150)
                               << IntPoint( 600,  600,  250)
@@ -94,8 +89,11 @@ int main() {
                               << IntPoint( 500,  300, 1150)
                               << IntPoint( 300,  500, 1250)
                               << IntPoint( 100,  300, 1350);
-    std::reverse(intersectionTestSmallPart.begin(), intersectionTestSmallPart.end());
-    intersectionTest << intersectionTestLargePart << intersectionTestSmallPart;
+    ReversePath(intersectionTestSmallPart);
+    test << intersectionTestLargePart << intersectionTestSmallPart;
+}
+
+void horizontalEdgeTest(Paths &test) {
     Path horizontalEdgeTest;
     horizontalEdgeTest << IntPoint( 600, 800,  150)
                        << IntPoint( 700, 800,  250)
@@ -129,10 +127,46 @@ int main() {
                        << IntPoint( 500, 700, 2350)
                        << IntPoint( 600, 700, 2450);
     ReversePath(horizontalEdgeTest);
+    test << horizontalEdgeTest;
+}
 
-    clpr.AddPath(horizontalEdgeTest, ptSubject, true);
+void horizontalJoinTest(Paths &test) {
+    // 3|    13       23
+    //  |   /  \     /  \
+    // 2| 11-31-12|21-33-22
+    //  |      \     /
+    // 1|        32
+    // 0+--+--+---+---+--+
+    //  0  1  2   3   4  5
+    Path horzJoinTopA;
+    Path horzJoinTopB;
+    Path horzJoinBot;
+    horzJoinTopA << IntPoint(100, 200, 1150)
+                 << IntPoint(400, 200, 1250)
+                 << IntPoint(200, 300, 1350);
+    horzJoinTopB << IntPoint(200, 200, 2150)
+                 << IntPoint(500, 200, 2250)
+                 << IntPoint(400, 300, 2350);
+    horzJoinBot  << IntPoint(200, 200, 3150)
+                 << IntPoint(300, 100, 3250)
+                 << IntPoint(400, 200, 3350);
+    test << horzJoinTopA << horzJoinTopB << horzJoinBot;
+}
+#endif
+
+int main() {
+    #ifdef use_xyz
+    cout << "Hello, World!" << endl;
+    TestFollower zFill;
+    Clipper clpr;
+    clpr.PreserveCollinear(true);
+    clpr.Callback(&zFill);
+    Paths test;
+    horizontalJoinTest(test);
+    clpr.AddPaths(test, ptSubject, true);
     Paths solution;
     clpr.Execute(ctUnion, solution);
+    cout << "Clipper returned " << solution.size() << " paths." << endl;
     for (Path p : solution) {
         cout << "Path (" << p.size() << ")" << endl;
         for (IntPoint pt : p) {
