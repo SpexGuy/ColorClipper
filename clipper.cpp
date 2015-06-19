@@ -2656,7 +2656,9 @@ void Clipper::ProcessHorizontal(TEdge *horzEdge, bool isTopOfScanbeam)
           if (horzEdge->OutIdx >= 0)
           {
             OutCoord oc(horzEdge->Top);
+#ifdef use_xyz
             SetLocalMaxZ(horzEdge, e,oc);
+#endif
             OutPt* op1 = AddOutPt(horzEdge, oc);
             TEdge* eNextHorz = m_SortedEdges;
             while (eNextHorz) // iterate through horizontal edges from other local maxima checking for joins
@@ -2720,7 +2722,9 @@ void Clipper::ProcessHorizontal(TEdge *horzEdge, bool isTopOfScanbeam)
     if(horzEdge->OutIdx >= 0)
     {
       OutCoord ocd(horzEdge->Top);
+#ifdef use_xyz
       SetIntermediateZ(horzEdge, ocd);
+#endif
       OutPt* op1 = AddOutPt( horzEdge, ocd);
       if (isTopOfScanbeam) AddGhostJoin(op1, horzEdge->Bot);
       UpdateEdgeIntoAEL(horzEdge);
