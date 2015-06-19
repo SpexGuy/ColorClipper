@@ -130,10 +130,20 @@ void horizontalEdgeTest(Paths &test) {
     test << horizontalEdgeTest;
 }
 
+void horizontalIntersectionTest(Paths &test) {
+    Path mounds;
+    mounds << IntPoint(100, 200, 150)
+           << IntPoint(700, 200, 250)
+           << IntPoint(600, 300, 350)
+           << IntPoint(400, 100, 450)
+           << IntPoint(200, 200, 550);
+    test << mounds;
+}
+
 void horizontalJoinTest(Paths &test) {
-    // 3|    13       23
+    // 3|    12       22
     //  |   /  \     /  \
-    // 2| 11-31-12|21-33-22
+    // 2| 13-31-11|23-33-21
     //  |      \     /
     // 1|        32
     // 0+--+--+---+---+--+
@@ -141,12 +151,12 @@ void horizontalJoinTest(Paths &test) {
     Path horzJoinTopA;
     Path horzJoinTopB;
     Path horzJoinBot;
-    horzJoinTopA << IntPoint(100, 200, 1150)
-                 << IntPoint(400, 200, 1250)
-                 << IntPoint(200, 300, 1350);
-    horzJoinTopB << IntPoint(200, 200, 2150)
-                 << IntPoint(500, 200, 2250)
-                 << IntPoint(400, 300, 2350);
+    horzJoinTopA << IntPoint(300, 200, 1150)
+                 << IntPoint(200, 300, 1250)
+                 << IntPoint(100, 200, 1350);
+    horzJoinTopB << IntPoint(500, 200, 2150)
+                 << IntPoint(400, 300, 2250)
+                 << IntPoint(300, 200, 2350);
     horzJoinBot  << IntPoint(200, 200, 3150)
                  << IntPoint(300, 100, 3250)
                  << IntPoint(400, 200, 3350);
@@ -165,7 +175,7 @@ int main() {
     horizontalJoinTest(test);
     clpr.AddPaths(test, ptSubject, true);
     Paths solution;
-    clpr.Execute(ctUnion, solution);
+    clpr.Execute(ctUnion, solution, pftNonZero);
     cout << "Clipper returned " << solution.size() << " paths." << endl;
     for (Path p : solution) {
         cout << "Path (" << p.size() << ")" << endl;
