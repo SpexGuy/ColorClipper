@@ -22,12 +22,26 @@ public:
         // z1r z2r
         //  /   \
         // c     f
-        SplitEdge(e1bot, e1top, e1Forward, pt, z1f, z2r);
-        SplitEdge(e2bot, e2top, e2Forward, pt, z2f, z1r);
+        SplitIntersection(e1bot, e1top, e1Forward, pt, z1f, z2r);
+        SplitIntersection(e2bot, e2top, e2Forward, pt, z2f, z1r);
     }
     virtual void OnPoint(IntPoint& prev, IntPoint& curr, IntPoint& next, IntPoint2Z& pt) override {
         pt.correctZ = curr.Z;
         pt.reverseZ = ReverseZ(next.Z);
+    }
+    virtual void OnJoin(IntPoint2Z &e1from, IntPoint2Z &e1to, IntPoint2Z &e2from, IntPoint2Z &e2to) override {
+        e1to.correctZ = e2from.correctZ;
+        e1to.reverseZ = e2from.reverseZ;
+        e2to.correctZ = e1from.correctZ;
+        e2to.reverseZ = e1from.reverseZ;
+    }
+    virtual void OnSplitEdge(IntPoint2Z &prev, IntPoint2Z &pt, IntPoint2Z &next) override {
+        SplitEdge(prev, pt, next, prev.correctZ, pt.correctZ, next.correctZ);
+        SplitEdge(next, pt, prev, next.reverseZ, pt.reverseZ, prev.reverseZ);
+    }
+    virtual void OnRemoveSpike(IntPoint2Z &prev, IntPoint2Z &curr, IntPoint2Z &next) override {
+        RemoveSpike(prev, curr, next, prev.correctZ, curr.correctZ, next.correctZ);
+        RemoveSpike(next, curr, prev, next.reverseZ, curr.reverseZ, prev.reverseZ);
     }
 
     virtual void OnOffset(int step, int steps, IntPoint& source, IntPoint& dest) override {
@@ -37,11 +51,14 @@ public:
 protected:
     virtual cInt ReverseZ(cInt z) {return z;}
     virtual cInt Clone(cInt z) {return z;}
-    virtual cInt StripBegin(cInt z, IntPoint& from, IntPoint& to, const IntPoint& pt) {return z;}
-    virtual cInt StripEnd(cInt z, IntPoint& from, IntPoint& to, const IntPoint& pt) {return z;}
+    virtual cInt StripBegin(cInt z, const IntPoint& from, const IntPoint& to, const IntPoint& pt) {return z;}
+    virtual cInt StripEnd  (cInt z, const IntPoint& from, const IntPoint& to, const IntPoint& pt) {return z;}
 
 private:
-    void SplitEdge(IntPoint& bot, IntPoint& top, bool forward, const IntPoint& pt, cInt& zf, cInt& zr) {
+    void SplitEdge(const IntPoint &from, const IntPoint &pt, const IntPoint &to, cInt &fromZ, cInt &ptZ, cInt &toZ) {
+        ptZ = StripBegin(toZ, from, to, pt);
+    }
+    void SplitIntersection(IntPoint &bot, IntPoint &top, bool forward, const IntPoint &pt, cInt &zf, cInt &zr) {
         if (forward) {
             // set z1f=b(f), z2r=r(e(f)), e1top.Z=e(f)
             zf = StripBegin(top.Z, bot, top, pt);
@@ -54,13 +71,30 @@ private:
             bot.Z = StripBegin(bot.Z, top, bot, pt);
         }
     }
+    void RemoveSpike(const IntPoint &from, const IntPoint &spike, const IntPoint &to, cInt &fromZ, const cInt spikeZ, cInt &toZ) {
+        if (from == to) {
+            toZ = fromZ;
+        } else if (abs(from.X - spike.X) > abs(from.Y - spike.Y)) { // is x more precise than y?
+            if (abs(from.X - spike.X) > abs(to.X - spike.X)) { // is from further than to?
+                toZ = StripBegin(spikeZ, from, spike, to);
+            } else {
+                toZ = StripEnd(toZ, spike, to, from);
+            }
+        } else {
+            if (abs(from.Y - spike.Y) > abs(to.Y - spike.Y)) { // is from further than to?
+                toZ = StripBegin(spikeZ, from, spike, to);
+            } else {
+                toZ = StripEnd(toZ, spike, to, from);
+            }
+        }
+    }
 };
 
 class TestFollower : public FollowingZFill {
 protected:
     virtual cInt ReverseZ(cInt z) override {return -z;}
-    virtual cInt StripBegin(cInt z, IntPoint& from, IntPoint& to, const IntPoint& pt) {return z-10;}
-    virtual cInt StripEnd(cInt z, IntPoint& from, IntPoint& to, const IntPoint& pt) {return z+10;}
+    virtual cInt StripBegin(cInt z, const IntPoint& from, const IntPoint& to, const IntPoint& pt) override {return z-10;}
+    virtual cInt StripEnd  (cInt z, const IntPoint& from, const IntPoint& to, const IntPoint& pt) override {return z+10;}
 };
 
 void figure8Test(Paths &test) {

@@ -3105,11 +3105,22 @@ void Clipper::FixupOutPolygon(OutRec &outrec)
     }
 
     //test for duplicate points and collinear edges ...
-    if ((pp->Pt == pp->Next->Pt) || (pp->Pt == pp->Prev->Pt) || 
-      (SlopesEqual(pp->Prev->Pt, pp->Pt, pp->Next->Pt, m_UseFullRange) &&
-      (!m_PreserveCollinear || 
-      !Pt2IsBetweenPt1AndPt3(pp->Prev->Pt, pp->Pt, pp->Next->Pt))))
+    bool duplicate = (pp->Pt == pp->Next->Pt) || (pp->Pt == pp->Prev->Pt);
+    bool collinear = !duplicate && SlopesEqual(pp->Prev->Pt, pp->Pt, pp->Next->Pt, m_UseFullRange);
+    bool inOrder = collinear && Pt2IsBetweenPt1AndPt3(pp->Prev->Pt, pp->Pt, pp->Next->Pt);
+    if (duplicate || (collinear && (!m_PreserveCollinear || !inOrder)))
     {
+#ifdef use_xyz
+      if (!duplicate) {
+        if (!inOrder) {
+          // Two edges overlap
+          m_ZFill->OnRemoveSpike(pp->Next->Pt, pp->Pt, pp->Prev->Pt);
+        } else if (collinear) {
+          //TODO: Coalesce (just an optimization for m_preserveCollinear)
+          //m_ZFill->OnCoalesceCollinear(pp->Prev->Pt, pp->Pt, pp->Next->Pt);
+        }
+      }
+#endif
       lastOK = 0;
       OutPt *tmp = pp;
       pp->Prev->Next = pp->Next;
@@ -3315,8 +3326,8 @@ OutPt* DupOutPt(OutPt* outPt, bool InsertAfter)
 }
 //------------------------------------------------------------------------------
 
-bool JoinHorz(OutPt* op1, OutPt* op1b, OutPt* op2, OutPt* op2b,
-  const OutCoord Pt, bool DiscardLeft)
+bool Clipper::JoinHorz(OutPt* op1, OutPt* op1b, OutPt* op2, OutPt* op2b,
+   OutCoord Pt, bool DiscardLeft)
 {
   Direction Dir1 = (op1->Pt.X > op1b->Pt.X ? dRightToLeft : dLeftToRight);
   Direction Dir2 = (op2->Pt.X > op2b->Pt.X ? dRightToLeft : dLeftToRight);
@@ -3336,6 +3347,11 @@ bool JoinHorz(OutPt* op1, OutPt* op1b, OutPt* op2, OutPt* op2b,
     op1b = DupOutPt(op1, !DiscardLeft);
     if (op1b->Pt != Pt) 
     {
+#ifdef use_xyz
+      //TODO: Z may change here when we move the duplicated point
+      // OutPoints are wound in the reverse direction of their Z semantics, so pass them in backwards
+      m_ZFill->OnSplitEdge(op1->Next == op1b ? op1b->Next->Pt : op1->Next->Pt, Pt, op1->Pt);
+#endif
       op1 = op1b;
       op1->Pt = Pt;
       op1b = DupOutPt(op1, !DiscardLeft);
@@ -3350,6 +3366,11 @@ bool JoinHorz(OutPt* op1, OutPt* op1b, OutPt* op2, OutPt* op2b,
     op1b = DupOutPt(op1, DiscardLeft);
     if (op1b->Pt != Pt)
     {
+#ifdef use_xyz
+      //TODO: Z may change here when we move the duplicated point
+      // OutPoints are wound in the reverse direction of their Z semantics, so pass them in backwards
+      m_ZFill->OnSplitEdge(op1->Next == op1b ? op1b->Next->Pt : op1->Next->Pt, Pt, op1->Pt);
+#endif
       op1 = op1b;
       op1->Pt = Pt;
       op1b = DupOutPt(op1, DiscardLeft);
@@ -3365,6 +3386,11 @@ bool JoinHorz(OutPt* op1, OutPt* op1b, OutPt* op2, OutPt* op2b,
     op2b = DupOutPt(op2, !DiscardLeft);
     if (op2b->Pt != Pt)
     {
+#ifdef use_xyz
+      //TODO: Z may change here when we move the duplicated point
+      // OutPoints are wound in the reverse direction of their Z semantics, so pass them in backwards
+      m_ZFill->OnSplitEdge(op2->Next == op2b ? op2b->Next->Pt : op2->Next->Pt, Pt, op2->Pt);
+#endif
       op2 = op2b;
       op2->Pt = Pt;
       op2b = DupOutPt(op2, !DiscardLeft);
@@ -3378,6 +3404,11 @@ bool JoinHorz(OutPt* op1, OutPt* op1b, OutPt* op2, OutPt* op2b,
     op2b = DupOutPt(op2, DiscardLeft);
     if (op2b->Pt != Pt)
     {
+#ifdef use_xyz
+      //TODO: Z may change here when we move the duplicated point
+      // OutPoints are wound in the reverse direction of their Z semantics, so pass them in backwards
+      m_ZFill->OnSplitEdge(op2->Next == op2b ? op2b->Next->Pt : op2->Next->Pt, Pt, op2->Pt);
+#endif
       op2 = op2b;
       op2->Pt = Pt;
       op2b = DupOutPt(op2, DiscardLeft);
@@ -3386,6 +3417,9 @@ bool JoinHorz(OutPt* op1, OutPt* op1b, OutPt* op2, OutPt* op2b,
 
   if ((Dir1 == dLeftToRight) == DiscardLeft)
   {
+    //TODO: Fix up Z values here, after join
+    // Parameters still in reverse because OutRecs wound backwards
+    m_ZFill->OnJoin(op1->Pt, op1b->Pt, op2b->Pt, op2->Pt);
     op1->Prev = op2;
     op2->Next = op1;
     op1b->Next = op2b;
@@ -3393,6 +3427,9 @@ bool JoinHorz(OutPt* op1, OutPt* op1b, OutPt* op2, OutPt* op2b,
   }
   else
   {
+    //TODO: Fix up Z values here, after join
+    // Parameters still in reverse because OutRecs wound backwards
+    m_ZFill->OnJoin(op1b->Pt, op1->Pt, op2->Pt, op2b->Pt);
     op1->Next = op2;
     op2->Prev = op1;
     op1b->Prev = op2b;
@@ -3538,6 +3575,10 @@ bool Clipper::JoinPoints(Join *j, OutRec* outRec1, OutRec* outRec2)
     {
       op1b = DupOutPt(op1, false);
       op2b = DupOutPt(op2, true);
+#ifdef use_xyz
+      // OutPoints wound backward, so reverse parameters
+      m_ZFill->OnJoin(op1->Pt, op1b->Pt, op2b->Pt, op2->Pt);
+#endif
       op1->Prev = op2;
       op2->Next = op1;
       op1b->Next = op2b;
@@ -3549,6 +3590,10 @@ bool Clipper::JoinPoints(Join *j, OutRec* outRec1, OutRec* outRec2)
     {
       op1b = DupOutPt(op1, true);
       op2b = DupOutPt(op2, false);
+#ifdef use_xyz
+      // OutPoints wound backward, so reverse parameters
+      m_ZFill->OnJoin(op1b->Pt, op1->Pt, op2->Pt, op2b->Pt);
+#endif
       op1->Next = op2;
       op2->Prev = op1;
       op1b->Prev = op2b;
@@ -4684,6 +4729,15 @@ void ZFill::OnPoint(IntPoint &prev, IntPoint &curr, IntPoint &next, IntPoint2Z &
 void ZFill::OnIntersection(IntPoint &e1bot, IntPoint &e1top, bool e1Forward,
                            IntPoint &e2bot, IntPoint &e2top, bool e2Forward,
                            const IntPoint& pt, cInt &z1f, cInt &z1r, cInt &z2f, cInt &z2r) {
+
+}
+void ZFill::OnSplitEdge(IntPoint2Z &prev, IntPoint2Z &pt, IntPoint2Z &next) {
+
+}
+void ZFill::OnJoin(IntPoint2Z &e1from, IntPoint2Z &e1to, IntPoint2Z &e2from, IntPoint2Z &e2to) {
+
+}
+void ZFill::OnRemoveSpike(IntPoint2Z &prev, IntPoint2Z &curr, IntPoint2Z &next) {
 
 }
 void ZFill::OnOffset(int step, int steps, IntPoint& z, IntPoint& pt) {
