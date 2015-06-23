@@ -185,16 +185,30 @@ void horizontalJoinTest(Paths &test) {
     Path horzJoinTopA;
     Path horzJoinTopB;
     Path horzJoinBot;
-    horzJoinTopA << IntPoint(300, 200, 1150)
+    horzJoinTopA << IntPoint(350, 200, 1150)
                  << IntPoint(200, 300, 1250)
                  << IntPoint(100, 200, 1350);
     horzJoinTopB << IntPoint(500, 200, 2150)
                  << IntPoint(400, 300, 2250)
-                 << IntPoint(300, 200, 2350);
+                 << IntPoint(250, 200, 2350);
     horzJoinBot  << IntPoint(200, 200, 3150)
                  << IntPoint(300, 100, 3250)
                  << IntPoint(400, 200, 3350);
     test << horzJoinTopA << horzJoinTopB << horzJoinBot;
+}
+
+void noncontributingIntersectionTest(Paths &test) {
+    Path partA;
+    Path partB;
+    partA << IntPoint(100, 400, 1150)
+          << IntPoint(400, 100, 1250)
+          << IntPoint(500, 200, 1350)
+          << IntPoint(200, 500, 1450);
+    partB << IntPoint(400, 500, 2100)
+          << IntPoint(100, 200, 2200)
+          << IntPoint(200, 100, 2300)
+          << IntPoint(500, 400, 2400);
+    test << partA << partB;
 }
 #endif
 
@@ -206,7 +220,7 @@ int main() {
     clpr.PreserveCollinear(true);
     clpr.Callback(&zFill);
     Paths test;
-    horizontalJoinTest(test);
+    noncontributingIntersectionTest(test);
     clpr.AddPaths(test, ptSubject, true);
     Paths solution;
     clpr.Execute(ctUnion, solution, pftNonZero);
