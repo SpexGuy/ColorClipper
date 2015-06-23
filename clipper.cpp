@@ -1788,7 +1788,7 @@ OutPt* Clipper::AddLocalMinPoly(TEdge *e1, TEdge *e2, const IntPoint &Pt)
       SlopesEqual(*e, *prevE, m_UseFullRange) &&
       (e->WindDelta != 0) && (prevE->WindDelta != 0))
   {
-    //COLOR: Join
+    //TODO: COLOR: Join
     OutPt* outPt = AddOutPt(prevE, pt);
     AddJoin(result, outPt, e->Top);
   }
@@ -1957,7 +1957,7 @@ void Clipper::InsertLocalMinimaIntoAEL(const cInt botY)
       SlopesEqual(*lb->PrevInAEL, *lb, m_UseFullRange) &&
       (lb->WindDelta != 0) && (lb->PrevInAEL->WindDelta != 0))
     {
-        //COLOR: Join
+        //TODO: COLOR: Join
         OutCoord oc(lb->Bot);
         OutPt *Op2 = AddOutPt(lb->PrevInAEL, oc);
         AddJoin(Op1, Op2, lb->Top);
@@ -1970,7 +1970,7 @@ void Clipper::InsertLocalMinimaIntoAEL(const cInt botY)
         SlopesEqual(*rb->PrevInAEL, *rb, m_UseFullRange) &&
         (rb->WindDelta != 0) && (rb->PrevInAEL->WindDelta != 0))
       {
-          //COLOR: Join
+          //TODO: COLOR: Join
           OutCoord oc(rb->Bot);
           OutPt *Op2 = AddOutPt(rb->PrevInAEL, oc);
           AddJoin(Op1, Op2, rb->Top);
@@ -2667,7 +2667,7 @@ void Clipper::ProcessHorizontal(TEdge *horzEdge, bool isTopOfScanbeam)
                 HorzSegmentsOverlap(horzEdge->Bot.X,
                 horzEdge->Top.X, eNextHorz->Bot.X, eNextHorz->Top.X))
               {
-                //COLOR: Join Horizontal
+                //TODO: COLOR: Join Horizontal
                 OutCoord ocd(eNextHorz->Bot);
                 OutPt* op2 = AddOutPt(eNextHorz, ocd);
                 AddJoin(op2, op1, eNextHorz->Top);
@@ -2733,7 +2733,7 @@ void Clipper::ProcessHorizontal(TEdge *horzEdge, bool isTopOfScanbeam)
         (ePrev->OutIdx >= 0 && ePrev->Curr.Y > ePrev->Top.Y &&
         SlopesEqual(*horzEdge, *ePrev, m_UseFullRange)))
       {
-        //COLOR: Join
+        //TODO: COLOR: Join After Horizontal
         OutCoord oc(horzEdge->Bot);
         OutPt* op2 = AddOutPt(ePrev, oc);
         AddJoin(op1, op2, horzEdge->Top);
@@ -2743,7 +2743,7 @@ void Clipper::ProcessHorizontal(TEdge *horzEdge, bool isTopOfScanbeam)
         eNext->OutIdx >= 0 && eNext->Curr.Y > eNext->Top.Y &&
         SlopesEqual(*horzEdge, *eNext, m_UseFullRange))
       {
-        //COLOR: Join
+        //TODO: COLOR: Join After Horizontal
         OutCoord oc(horzEdge->Bot);
         OutPt* op2 = AddOutPt(eNext, oc);
         AddJoin(op1, op2, horzEdge->Top);
@@ -2932,7 +2932,7 @@ void Clipper::DoMaxima(TEdge *e)
   TEdge* eNext = e->NextInAEL;
   while(eNext && eNext != eMaxPair)
   {
-    //COLOR: The fuck is this?
+    //COLOR: Other edges which intersect this point
     IntersectEdges(e, eNext, e->Top);
     SwapPositionsInAEL(e, eNext);
     eNext = e->NextInAEL;
@@ -3065,7 +3065,7 @@ void Clipper::ProcessEdgesAtTopOfScanbeam(const cInt topY)
         SlopesEqual(*e, *ePrev, m_UseFullRange) &&
         (e->WindDelta != 0) && (ePrev->WindDelta != 0))
       {
-        //COLOR: Join
+        //TODO: COLOR: Join
         OutCoord oc(e->Bot);
         OutPt* op2 = AddOutPt(ePrev, oc);
         AddJoin(op, op2, e->Top);
@@ -3076,7 +3076,7 @@ void Clipper::ProcessEdgesAtTopOfScanbeam(const cInt topY)
         SlopesEqual(*e, *eNext, m_UseFullRange) &&
         (e->WindDelta != 0) && (eNext->WindDelta != 0))
       {
-        //COLOR: Join
+        //TODO: COLOR: Join
         OutCoord oc(e->Bot);
         OutPt* op2 = AddOutPt(eNext, oc);
         AddJoin(op, op2, e->Top);
@@ -3348,7 +3348,7 @@ bool Clipper::JoinHorz(OutPt* op1, OutPt* op1b, OutPt* op2, OutPt* op2b,
     if (op1b->Pt != Pt) 
     {
 #ifdef use_xyz
-      //TODO: Z may change here when we move the duplicated point
+      //TODO: Order is more complex here...
       // OutPoints are wound in the reverse direction of their Z semantics, so pass them in backwards
       m_ZFill->OnSplitEdge(op1->Next == op1b ? op1b->Next->Pt : op1->Next->Pt, Pt, op1->Pt);
 #endif
@@ -3367,9 +3367,9 @@ bool Clipper::JoinHorz(OutPt* op1, OutPt* op1b, OutPt* op2, OutPt* op2b,
     if (op1b->Pt != Pt)
     {
 #ifdef use_xyz
-      //TODO: Z may change here when we move the duplicated point
+      //TODO: Order is more complex here...
       // OutPoints are wound in the reverse direction of their Z semantics, so pass them in backwards
-      m_ZFill->OnSplitEdge(op1->Next == op1b ? op1b->Next->Pt : op1->Next->Pt, Pt, op1->Pt);
+      m_ZFill->OnSplitEdge(op1->Prev == op1b ? op1b->Prev->Pt : op1->Prev->Pt, Pt, op1->Pt);
 #endif
       op1 = op1b;
       op1->Pt = Pt;
@@ -3387,7 +3387,7 @@ bool Clipper::JoinHorz(OutPt* op1, OutPt* op1b, OutPt* op2, OutPt* op2b,
     if (op2b->Pt != Pt)
     {
 #ifdef use_xyz
-      //TODO: Z may change here when we move the duplicated point
+      //TODO: Order is more complex here...
       // OutPoints are wound in the reverse direction of their Z semantics, so pass them in backwards
       m_ZFill->OnSplitEdge(op2->Next == op2b ? op2b->Next->Pt : op2->Next->Pt, Pt, op2->Pt);
 #endif
@@ -3405,7 +3405,7 @@ bool Clipper::JoinHorz(OutPt* op1, OutPt* op1b, OutPt* op2, OutPt* op2b,
     if (op2b->Pt != Pt)
     {
 #ifdef use_xyz
-      //TODO: Z may change here when we move the duplicated point
+      //TODO: Order is more complex here...
       // OutPoints are wound in the reverse direction of their Z semantics, so pass them in backwards
       m_ZFill->OnSplitEdge(op2->Next == op2b ? op2b->Next->Pt : op2->Next->Pt, Pt, op2->Pt);
 #endif
@@ -3417,7 +3417,6 @@ bool Clipper::JoinHorz(OutPt* op1, OutPt* op1b, OutPt* op2, OutPt* op2b,
 
   if ((Dir1 == dLeftToRight) == DiscardLeft)
   {
-    //TODO: Fix up Z values here, after join
     // Parameters still in reverse because OutRecs wound backwards
     m_ZFill->OnJoin(op1->Pt, op1b->Pt, op2b->Pt, op2->Pt);
     op1->Prev = op2;
@@ -3427,7 +3426,6 @@ bool Clipper::JoinHorz(OutPt* op1, OutPt* op1b, OutPt* op2, OutPt* op2b,
   }
   else
   {
-    //TODO: Fix up Z values here, after join
     // Parameters still in reverse because OutRecs wound backwards
     m_ZFill->OnJoin(op1b->Pt, op1->Pt, op2->Pt, op2b->Pt);
     op1->Next = op2;
