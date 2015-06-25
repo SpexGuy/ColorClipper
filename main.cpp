@@ -204,23 +204,22 @@ void noncontributingIntersectionTest(Paths &test) {
           << IntPoint(400, 100, 1250)
           << IntPoint(500, 200, 1350)
           << IntPoint(200, 500, 1450);
-    partB << IntPoint(400, 500, 2100)
-          << IntPoint(100, 200, 2200)
-          << IntPoint(200, 100, 2300)
-          << IntPoint(500, 400, 2400);
+    partB << IntPoint(400, 500, 2150)
+          << IntPoint(100, 200, 2250)
+          << IntPoint(200, 100, 2350)
+          << IntPoint(500, 400, 2450);
     test << partA << partB;
 }
 #endif
 
 int main() {
     #ifdef use_xyz
-    cout << "Hello, World!" << endl;
     TestFollower zFill;
     Clipper clpr;
     clpr.PreserveCollinear(true);
     clpr.Callback(&zFill);
     Paths test;
-    noncontributingIntersectionTest(test);
+    horizontalJoinTest(test);
     clpr.AddPaths(test, ptSubject, true);
     Paths solution;
     clpr.Execute(ctUnion, solution, pftNonZero);
