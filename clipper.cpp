@@ -1748,16 +1748,13 @@ bool Clipper::IsContributing(const TEdge& edge) const
 }
 //------------------------------------------------------------------------------
 
-OutPt* Clipper::AddLocalMinPoly(TEdge *e1, TEdge *e2, const IntPoint &Pt)
+OutPt* Clipper::AddLocalMinPoly(TEdge *e1, TEdge *e2, OutCoord &Pt)
 {
   OutPt* result;
   TEdge *e, *prevE;
   OutCoord pt(Pt);
   if (IsHorizontal(*e2) || ( e1->Dx > e2->Dx ))
   {
-#ifdef use_xyz
-    SetLocalMinZ(e1, e2, pt);
-#endif
     result = AddOutPt(e1, pt);
     e2->OutIdx = e1->OutIdx;
     e1->Side = esLeft;
@@ -1769,9 +1766,7 @@ OutPt* Clipper::AddLocalMinPoly(TEdge *e1, TEdge *e2, const IntPoint &Pt)
       prevE = e->PrevInAEL;
   } else
   {
-#ifdef use_xyz
-    SetLocalMinZ(e2, e1, pt);
-#endif
+    //TODO: SetLocalMin used to switch edge order here. does it matter?
     result = AddOutPt(e2, pt);
     e1->OutIdx = e2->OutIdx;
     e1->Side = esRight;
@@ -1796,15 +1791,21 @@ OutPt* Clipper::AddLocalMinPoly(TEdge *e1, TEdge *e2, const IntPoint &Pt)
 }
 //------------------------------------------------------------------------------
 
-void Clipper::AddLocalMaxPoly(TEdge *e1, TEdge *e2, const IntPoint &Pt)
-{
-  OutCoord pt(Pt);
+OutPt* Clipper::AddIntersectionMinPoly(TEdge *e1, TEdge *e2, const IntPoint &pt) {
+  OutCoord oc(pt);
 #ifdef use_xyz
-  SetLocalMaxZ(e1, e2, pt);
+  OutCoord max(pt);
+  SetIntersectionMinMaxZ(e1, e2, pt, oc, max);
 #endif
-  AddOutPt( e1, pt );
+  return AddLocalMinPoly(e1, e2, oc);
+}
+//------------------------------------------------------------------------------
+
+void Clipper::AddLocalMaxPoly(TEdge *e1, TEdge *e2, OutCoord &Pt)
+{
+  AddOutPt( e1, Pt );
   if (e2->WindDelta == 0)
-    AddOutPt(e2, pt);
+    AddOutPt(e2, Pt);
   if( e1->OutIdx == e2->OutIdx )
   {
     e1->OutIdx = Unassigned;
@@ -1923,8 +1924,13 @@ void Clipper::InsertLocalMinimaIntoAEL(const cInt botY)
       SetWindingCount( *lb );
       rb->WindCnt = lb->WindCnt;
       rb->WindCnt2 = lb->WindCnt2;
-      if (IsContributing(*lb))
-        Op1 = AddLocalMinPoly(lb, rb, lb->Bot);      
+      if (IsContributing(*lb)) {
+        OutCoord oc(lb->Bot);
+#ifdef use_xyz
+        SetLocalMinZ(lb, rb, oc);
+#endif
+        Op1 = AddLocalMinPoly(lb, rb, oc);
+      }
       InsertScanbeam(lb->Top.Y);
     }
 
@@ -2024,11 +2030,6 @@ void Clipper::IntersectEdges(TEdge *e1, TEdge *e2, IntPoint &Pt)
 {
   bool e1Contributing = ( e1->OutIdx >= 0 );
   bool e2Contributing = ( e2->OutIdx >= 0 );
-
-#ifdef use_xyz
-  //This is not where this goes.
-  //SetZ(Pt, *e1, *e2);
-#endif
 
 #ifdef use_lines
   //if either edge is on an OPEN path ...
@@ -2142,14 +2143,21 @@ void Clipper::IntersectEdges(TEdge *e1, TEdge *e2, IntPoint &Pt)
     if ((e1Wc != 0 && e1Wc != 1) || (e2Wc != 0 && e2Wc != 1) ||
       (e1->PolyTyp != e2->PolyTyp && m_ClipType != ctXor) )
     {
+#ifdef use_xyz
+      OutCoord min(Pt);
+      OutCoord max(Pt);
+      SetIntersectionMinMaxZ(e1, e2, Pt, min, max);
+      AddLocalMaxPoly(e1, e2, max);
+#else
       AddLocalMaxPoly(e1, e2, Pt);
+#endif
     }
     else
     {
 #ifdef use_xyz
       OutCoord z1(Pt);
       OutCoord z2(Pt);
-      SetIntersectionZ(e1, e2, Pt, z1, z2);
+      SetIntersectionIntermediateZ(e1, e2, Pt, z1, z2);
       AddOutPt(e1, z1);
       AddOutPt(e2, z2);
 #else
@@ -2167,7 +2175,7 @@ void Clipper::IntersectEdges(TEdge *e1, TEdge *e2, IntPoint &Pt)
 #ifdef use_xyz
       OutCoord z1(Pt);
       OutCoord z2(Pt);
-      SetIntersectionZ(e1, e2, Pt, z1, z2);
+      SetIntersectionIntermediateZ(e1, e2, Pt, z1, z2);
       AddOutPt(e1, z1);
 #else
       AddOutPt(e1, Pt);
@@ -2183,7 +2191,7 @@ void Clipper::IntersectEdges(TEdge *e1, TEdge *e2, IntPoint &Pt)
 #ifdef use_xyz
       OutCoord z1(Pt);
       OutCoord z2(Pt);
-      SetIntersectionZ(e1, e2, Pt, z1, z2);
+      SetIntersectionIntermediateZ(e1, e2, Pt, z1, z2);
       AddOutPt(e2, z2);
 #else
       AddOutPt(e2, Pt);
@@ -2212,25 +2220,25 @@ void Clipper::IntersectEdges(TEdge *e1, TEdge *e2, IntPoint &Pt)
 
     if (e1->PolyTyp != e2->PolyTyp)
     {
-      AddLocalMinPoly(e1, e2, Pt);
+      AddIntersectionMinPoly(e1, e2, Pt);
     }
     else if (e1Wc == 1 && e2Wc == 1)
       switch( m_ClipType ) {
         case ctIntersection:
           if (e1Wc2 > 0 && e2Wc2 > 0)
-            AddLocalMinPoly(e1, e2, Pt);
+            AddIntersectionMinPoly(e1, e2, Pt);
           break;
         case ctUnion:
           if ( e1Wc2 <= 0 && e2Wc2 <= 0 )
-            AddLocalMinPoly(e1, e2, Pt);
+            AddIntersectionMinPoly(e1, e2, Pt);
           break;
         case ctDifference:
           if (((e1->PolyTyp == ptClip) && (e1Wc2 > 0) && (e2Wc2 > 0)) ||
               ((e1->PolyTyp == ptSubject) && (e1Wc2 <= 0) && (e2Wc2 <= 0)))
-                AddLocalMinPoly(e1, e2, Pt);
+            AddIntersectionMinPoly(e1, e2, Pt);
           break;
         case ctXor:
-          AddLocalMinPoly(e1, e2, Pt);
+          AddIntersectionMinPoly(e1, e2, Pt);
       }
     else
       SwapSides( *e1, *e2 );
@@ -2675,7 +2683,7 @@ void Clipper::ProcessHorizontal(TEdge *horzEdge, bool isTopOfScanbeam)
               eNextHorz = eNextHorz->NextInSEL;
             }
             AddGhostJoin(op1, horzEdge->Bot);
-            AddLocalMaxPoly(horzEdge, eMaxPair, horzEdge->Top);
+            AddLocalMaxPoly(horzEdge, eMaxPair, oc); //TODO:[DBG] Is oc the correct pt? - does it matter (coincident coalescence)?
           }
           DeleteFromAEL(horzEdge);
           DeleteFromAEL(eMaxPair);
@@ -2945,7 +2953,13 @@ void Clipper::DoMaxima(TEdge *e)
   }
   else if( e->OutIdx >= 0 && eMaxPair->OutIdx >= 0 )
   {
-    if (e->OutIdx >= 0) AddLocalMaxPoly(e, eMaxPair, e->Top);
+    if (e->OutIdx >= 0) {
+      OutCoord pt(e->Top);
+#ifdef use_xyz
+      SetLocalMaxZ(e, eMaxPair, pt);
+#endif
+      AddLocalMaxPoly(e, eMaxPair, pt);
+    }
     DeleteFromAEL(e);
     DeleteFromAEL(eMaxPair);
   }
@@ -3741,12 +3755,19 @@ void Clipper::JoinCommonEdges()
 }
 
 #ifdef use_xyz
-void Clipper::SetIntersectionZ(TEdge *e1, TEdge *e2, const IntPoint& pt, IntPoint2Z& p1, IntPoint2Z& p2) {
+void Clipper::SetIntersectionIntermediateZ(TEdge *e1, TEdge *e2, const IntPoint &pt, IntPoint2Z &p1, IntPoint2Z &p2) {
   m_ZFill->OnIntersection(e1->Bot, e1->Top, e1->LMLIsForward,
                           e2->Bot, e2->Top, e2->LMLIsForward,
                           pt, p1.correctZ, p1.reverseZ, p2.correctZ, p2.reverseZ);
   if (e1->Side == esRight) p1.reverse();
   if (e2->Side == esRight) p2.reverse();
+}
+void Clipper::SetIntersectionMinMaxZ(TEdge *e1, TEdge *e2, const IntPoint &pt, IntPoint2Z &min, IntPoint2Z &max) {
+  m_ZFill->OnIntersection(e1->Bot, e1->Top, e1->LMLIsForward,
+                          e2->Bot, e2->Top, e2->LMLIsForward,
+                          pt, max.correctZ, min.correctZ, max.reverseZ, min.reverseZ);
+  if (e1->Side == esRight) max.reverse();
+  if (e2->Side == esRight) min.reverse();
 }
 void Clipper::SetIntermediateZ(TEdge *e, IntPoint2Z& pt) {
   if (e->Next == e->NextInLML) {

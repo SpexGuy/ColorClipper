@@ -369,8 +369,9 @@ private:
   void DoMaxima(TEdge *e);
   void ProcessHorizontals(bool IsTopOfScanbeam);
   void ProcessHorizontal(TEdge *horzEdge, bool isTopOfScanbeam);
-  void AddLocalMaxPoly(TEdge *e1, TEdge *e2, const IntPoint &pt);
-  OutPt* AddLocalMinPoly(TEdge *e1, TEdge *e2, const IntPoint &pt);
+  void AddLocalMaxPoly(TEdge *e1, TEdge *e2, OutCoord &pt);
+  OutPt* AddLocalMinPoly(TEdge *e1, TEdge *e2, OutCoord &pt);
+  OutPt* AddIntersectionMinPoly(TEdge *e1, TEdge *e2, const IntPoint &pt);
   OutRec* GetOutRec(int idx);
   void AppendPolygon(TEdge *e1, TEdge *e2);
   void IntersectEdges(TEdge *e1, TEdge *e2, IntPoint &pt);
@@ -405,7 +406,8 @@ private:
   void SetIntermediateZ(TEdge *e, IntPoint2Z& pt);
   void SetLocalMaxZ(TEdge* e1, TEdge* e2, IntPoint2Z& pt);
   void SetLocalMinZ(TEdge* e1, TEdge* e2, IntPoint2Z& pt);
-  void SetIntersectionZ(TEdge* e1, TEdge* e2, const IntPoint& pt, IntPoint2Z& p1, IntPoint2Z& p2);
+  void SetIntersectionIntermediateZ(TEdge *e1, TEdge *e2, const IntPoint &pt, IntPoint2Z &p1, IntPoint2Z &p2);
+  void SetIntersectionMinMaxZ(TEdge *e1, TEdge *e2, const IntPoint &pt, IntPoint2Z &min, IntPoint2Z &max);
 #endif
 };
 //------------------------------------------------------------------------------
