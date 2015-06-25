@@ -197,6 +197,33 @@ void horizontalJoinTest(Paths &test) {
     test << horzJoinTopA << horzJoinTopB << horzJoinBot;
 }
 
+void joinTest(Paths &test) {
+    Path base;
+    Path tlTrig;
+    Path trTrig;
+    Path blTrig;
+    Path brTrig;
+    base << IntPoint(400, 700, 150)
+         << IntPoint(100, 400, 250)
+//         << IntPoint(300, 200, 350)
+//         << IntPoint(500, 200, 450)
+         << IntPoint(700, 400, 550);
+    tlTrig << IntPoint(200, 600, 1150)
+           << IntPoint(200, 500, 1250)
+           << IntPoint(300, 600, 1350);
+    trTrig << IntPoint(600, 600, 2150)
+           << IntPoint(500, 600, 2250)
+           << IntPoint(600, 500, 2350);
+    blTrig << IntPoint(200, 100, 3150)
+           << IntPoint(300, 200, 3250)
+           << IntPoint(200, 300, 3350);
+    brTrig << IntPoint(600, 100, 4150)
+           << IntPoint(600, 300, 4250)
+           << IntPoint(500, 200, 4350);
+//    test << base << tlTrig << trTrig << blTrig << brTrig;
+    test << base << trTrig;
+}
+
 void noncontributingIntersectionTest(Paths &test) {
     Path partA;
     Path partB;
@@ -210,6 +237,18 @@ void noncontributingIntersectionTest(Paths &test) {
           << IntPoint(500, 400, 2450);
     test << partA << partB;
 }
+
+void coincidentEdgeTest(Paths &test) {
+    Path partA;
+    Path partB;
+    partA << IntPoint(350, 100, 1150)
+          << IntPoint(200, 200, 1250)
+          << IntPoint(100, 100, 1350);
+    partB << IntPoint(500, 100, 2150)
+          << IntPoint(400, 200, 2250)
+          << IntPoint(250, 100, 2350);
+    test << partA << partB;
+}
 #endif
 
 int main() {
@@ -219,7 +258,7 @@ int main() {
     clpr.PreserveCollinear(true);
     clpr.Callback(&zFill);
     Paths test;
-    horizontalJoinTest(test);
+    joinTest(test);
     clpr.AddPaths(test, ptSubject, true);
     Paths solution;
     clpr.Execute(ctUnion, solution, pftNonZero);
