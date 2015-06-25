@@ -408,6 +408,7 @@ private:
   void SetLocalMinZ(TEdge* e1, TEdge* e2, IntPoint2Z& pt);
   void SetIntersectionIntermediateZ(TEdge *e1, TEdge *e2, const IntPoint &pt, IntPoint2Z &p1, IntPoint2Z &p2);
   void SetIntersectionMinMaxZ(TEdge *e1, TEdge *e2, const IntPoint &pt, IntPoint2Z &min, IntPoint2Z &max);
+  void SetEdgeSplitZ(OutPt *splitPt);
 #endif
 };
 //------------------------------------------------------------------------------

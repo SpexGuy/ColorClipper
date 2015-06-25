@@ -3361,13 +3361,11 @@ bool Clipper::JoinHorz(OutPt* op1, OutPt* op1b, OutPt* op2, OutPt* op2b,
     op1b = DupOutPt(op1, !DiscardLeft);
     if (op1b->Pt != Pt) 
     {
-#ifdef use_xyz
-      //TODO: Order is more complex here...
-      // OutPoints are wound in the reverse direction of their Z semantics, so pass them in backwards
-      m_ZFill->OnSplitEdge(op1->Next == op1b ? op1b->Next->Pt : op1->Next->Pt, Pt, op1->Pt);
-#endif
       op1 = op1b;
       op1->Pt = Pt;
+#ifdef use_xyz
+      SetEdgeSplitZ(op1);
+#endif
       op1b = DupOutPt(op1, !DiscardLeft);
     }
   } 
@@ -3380,13 +3378,11 @@ bool Clipper::JoinHorz(OutPt* op1, OutPt* op1b, OutPt* op2, OutPt* op2b,
     op1b = DupOutPt(op1, DiscardLeft);
     if (op1b->Pt != Pt)
     {
-#ifdef use_xyz
-      //TODO: Order is more complex here...
-      // OutPoints are wound in the reverse direction of their Z semantics, so pass them in backwards
-      m_ZFill->OnSplitEdge(op1->Prev == op1b ? op1b->Prev->Pt : op1->Prev->Pt, Pt, op1->Pt);
-#endif
       op1 = op1b;
       op1->Pt = Pt;
+#ifdef use_xyz
+      SetEdgeSplitZ(op1);
+#endif
       op1b = DupOutPt(op1, DiscardLeft);
     }
   }
@@ -3400,13 +3396,11 @@ bool Clipper::JoinHorz(OutPt* op1, OutPt* op1b, OutPt* op2, OutPt* op2b,
     op2b = DupOutPt(op2, !DiscardLeft);
     if (op2b->Pt != Pt)
     {
-#ifdef use_xyz
-      //TODO: Order is more complex here...
-      // OutPoints are wound in the reverse direction of their Z semantics, so pass them in backwards
-      m_ZFill->OnSplitEdge(op2->Next == op2b ? op2b->Next->Pt : op2->Next->Pt, Pt, op2->Pt);
-#endif
       op2 = op2b;
       op2->Pt = Pt;
+#ifdef use_xyz
+      SetEdgeSplitZ(op2);
+#endif
       op2b = DupOutPt(op2, !DiscardLeft);
     };
   } else
@@ -3418,13 +3412,11 @@ bool Clipper::JoinHorz(OutPt* op1, OutPt* op1b, OutPt* op2, OutPt* op2b,
     op2b = DupOutPt(op2, DiscardLeft);
     if (op2b->Pt != Pt)
     {
-#ifdef use_xyz
-      //TODO: Order is more complex here...
-      // OutPoints are wound in the reverse direction of their Z semantics, so pass them in backwards
-      m_ZFill->OnSplitEdge(op2->Next == op2b ? op2b->Next->Pt : op2->Next->Pt, Pt, op2->Pt);
-#endif
       op2 = op2b;
       op2->Pt = Pt;
+#ifdef use_xyz
+      SetEdgeSplitZ(op2);
+#endif
       op2b = DupOutPt(op2, DiscardLeft);
     };
   };
@@ -3795,6 +3787,10 @@ void Clipper::SetLocalMinZ(TEdge *e1, TEdge *e2, IntPoint2Z& pt) {
     m_ZFill->OnPoint(e1->Top, e1->Bot, e2->Top, pt);
     if (e1->Side != esRight) pt.reverse();
   }
+}
+void Clipper::SetEdgeSplitZ(OutPt *splitPt) {
+  // OutPoints are wound in the reverse direction of their Z semantics, so pass them in backwards
+  m_ZFill->OnSplitEdge(splitPt->Next->Pt, splitPt->Pt, splitPt->Prev->Pt);
 }
 #endif
 
