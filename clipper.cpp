@@ -3071,49 +3071,51 @@ void Clipper::ProcessEdgesAtTopOfScanbeam(const cInt topY)
   while(e)
   {
     if(IsIntermediate(e, topY))
-    {
-      OutPt* op = 0;
-      if( e->OutIdx >= 0 ) {
-        OutCoord pt(e->Top);
-#ifdef use_xyz
-        SetIntermediateZ(e, pt);
-#endif
-        op = AddOutPt(e, pt);
-      }
-      UpdateEdgeIntoAEL(e);
-
-      //if output polygons share an edge, they'll need joining later ...
-      TEdge* ePrev = e->PrevInAEL;
-      TEdge* eNext = e->NextInAEL;
-      //ePrev exists and overlaps e (and then continues) and both are contributing and both are not lines
-      if (ePrev && ePrev->Curr.X == e->Bot.X &&
-        ePrev->Curr.Y == e->Bot.Y && op &&
-        ePrev->OutIdx >= 0 && ePrev->Curr.Y > ePrev->Top.Y &&
-        SlopesEqual(*e, *ePrev, m_UseFullRange) &&
-        (e->WindDelta != 0) && (ePrev->WindDelta != 0))
-      {
-        OutCoord oc(e->Bot);
-#ifdef use_xyz
-        SetEdgeSplitZ(ePrev, oc);
-#endif
-        OutPt* op2 = AddOutPt(ePrev, oc);
-        AddJoin(op, op2, e->Top);
-      }
-      else if (eNext && eNext->Curr.X == e->Bot.X &&
-        eNext->Curr.Y == e->Bot.Y && op &&
-        eNext->OutIdx >= 0 && eNext->Curr.Y > eNext->Top.Y &&
-        SlopesEqual(*e, *eNext, m_UseFullRange) &&
-        (e->WindDelta != 0) && (eNext->WindDelta != 0))
-      {
-        OutCoord oc(e->Bot);
-#ifdef use_xyz
-        SetEdgeSplitZ(eNext, oc);
-#endif
-        OutPt* op2 = AddOutPt(eNext, oc);
-        AddJoin(op, op2, e->Top);
-      }
-    }
+      PromoteIntermediate(e);
     e = e->NextInAEL;
+  }
+}
+
+void Clipper::PromoteIntermediate(TEdge *&e) {
+  OutPt* op = 0;
+  if( e->OutIdx >= 0 ) {
+    OutCoord pt(e->Top);
+#ifdef use_xyz
+    SetIntermediateZ(e, pt);
+#endif
+    op = AddOutPt(e, pt);
+  }
+  UpdateEdgeIntoAEL(e);
+
+  //if output polygons share an edge, they'll need joining later ...
+  TEdge* ePrev = e->PrevInAEL;
+  TEdge* eNext = e->NextInAEL;
+  //ePrev exists and overlaps e (and then continues) and both are contributing and both are not lines
+  if (ePrev && ePrev->Curr.X == e->Bot.X &&
+      ePrev->Curr.Y == e->Bot.Y && op &&
+      ePrev->OutIdx >= 0 && ePrev->Curr.Y > ePrev->Top.Y &&
+      SlopesEqual(*e, *ePrev, m_UseFullRange) &&
+      (e->WindDelta != 0) && (ePrev->WindDelta != 0))
+  {
+    OutCoord oc(e->Bot);
+#ifdef use_xyz
+    SetEdgeSplitZ(ePrev, oc);
+#endif
+    OutPt* op2 = AddOutPt(ePrev, oc);
+    AddJoin(op, op2, e->Top);
+  }
+  else if (eNext && eNext->Curr.X == e->Bot.X &&
+           eNext->Curr.Y == e->Bot.Y && op &&
+           eNext->OutIdx >= 0 && eNext->Curr.Y > eNext->Top.Y &&
+           SlopesEqual(*e, *eNext, m_UseFullRange) &&
+           (e->WindDelta != 0) && (eNext->WindDelta != 0))
+  {
+    OutCoord oc(e->Bot);
+#ifdef use_xyz
+    SetEdgeSplitZ(eNext, oc);
+#endif
+    OutPt* op2 = AddOutPt(eNext, oc);
+    AddJoin(op, op2, e->Top);
   }
 }
 //------------------------------------------------------------------------------

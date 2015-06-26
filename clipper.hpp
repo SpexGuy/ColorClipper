@@ -386,6 +386,7 @@ private:
   void BuildIntersectList(const cInt topY);
   void ProcessIntersectList();
   void ProcessEdgesAtTopOfScanbeam(const cInt topY);
+  void PromoteIntermediate(TEdge *&e);
   void BuildResult(Paths& polys);
   void BuildResult2(PolyTree& polytree);
   void SetHoleState(TEdge *e, OutRec *outrec);
