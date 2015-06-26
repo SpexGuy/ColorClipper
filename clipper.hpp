@@ -177,7 +177,9 @@ public:
                               const IntPoint& pt, cInt& z1f, cInt& z1r, cInt& z2f, cInt& z2r);
   // Points here are passed in the same order they were in the original polygon
   virtual void OnPoint(IntPoint &prev, IntPoint &curr, IntPoint &next, IntPoint2Z &pt);
-  virtual void OnSplitEdge(IntPoint2Z &prev, IntPoint2Z &pt, IntPoint2Z &next);
+  virtual void OnSplitOutEdge(IntPoint2Z &prev, IntPoint2Z &pt, IntPoint2Z &next);
+  virtual void OnSplitEdge(IntPoint &prev, IntPoint2Z &pt, IntPoint &next);
+  virtual void OnAppendOverlapping(IntPoint2Z &prev, IntPoint2Z &to);
   virtual void OnJoin(IntPoint2Z &e1from, IntPoint2Z &e1to, IntPoint2Z &e2from, IntPoint2Z &e2to);
   virtual void OnRemoveSpike(IntPoint2Z &prev, IntPoint2Z &curr, IntPoint2Z &next);
   virtual void OnOffset(int step, int steps, IntPoint& z, IntPoint& pt);
@@ -409,6 +411,7 @@ private:
   void SetIntersectionIntermediateZ(TEdge *e1, TEdge *e2, const IntPoint &pt, IntPoint2Z &p1, IntPoint2Z &p2);
   void SetIntersectionMinMaxZ(TEdge *e1, TEdge *e2, const IntPoint &pt, IntPoint2Z &min, IntPoint2Z &max);
   void SetEdgeSplitZ(OutPt *splitPt);
+  void SetEdgeSplitZ(TEdge *edge, IntPoint2Z &pt);
 #endif
 };
 //------------------------------------------------------------------------------

@@ -9,6 +9,7 @@ using namespace ClipperLib;
 #ifdef use_xyz
 class FollowingZFill : public ZFill {
 public:
+    // Pre-join tasks
     virtual void OnIntersection(IntPoint& e1bot, IntPoint& e1top, bool e1Forward,
                                 IntPoint& e2bot, IntPoint& e2top, bool e2Forward,
                                 const IntPoint &pt, cInt& z1f, cInt& z1r, cInt& z2f, cInt& z2r) override {
@@ -29,13 +30,22 @@ public:
         pt.correctZ = curr.Z;
         pt.reverseZ = ReverseZ(next.Z);
     }
+    virtual void OnSplitEdge(IntPoint &prev, IntPoint2Z &pt, IntPoint &next) override {
+        pt.correctZ = StripBegin(next.Z, prev, next, pt);
+        pt.reverseZ = ReverseZ(StripEnd(next.Z, prev, next, pt));
+    }
+    virtual void OnAppendOverlapping(IntPoint2Z &from, IntPoint2Z &to) override {
+        to.correctZ = from.correctZ;
+        from.reverseZ = to.reverseZ;
+    }
+    // Post-join tasks
     virtual void OnJoin(IntPoint2Z &e1from, IntPoint2Z &e1to, IntPoint2Z &e2from, IntPoint2Z &e2to) override {
         e1to.correctZ = e2from.correctZ;
         e1to.reverseZ = e2from.reverseZ;
         e2to.correctZ = e1from.correctZ;
         e2to.reverseZ = e1from.reverseZ;
     }
-    virtual void OnSplitEdge(IntPoint2Z &prev, IntPoint2Z &pt, IntPoint2Z &next) override {
+    virtual void OnSplitOutEdge(IntPoint2Z &prev, IntPoint2Z &pt, IntPoint2Z &next) override {
         SplitEdge(prev, pt, next, prev.correctZ, pt.correctZ, next.correctZ);
         SplitEdge(next, pt, prev, next.reverseZ, pt.reverseZ, prev.reverseZ);
     }
@@ -203,11 +213,12 @@ void joinTest(Paths &test) {
     Path trTrig;
     Path blTrig;
     Path brTrig;
-    base << IntPoint(400, 700, 150)
+    base
+//         << IntPoint(400, 700, 150)
          << IntPoint(100, 400, 250)
-//         << IntPoint(300, 200, 350)
-//         << IntPoint(500, 200, 450)
-         << IntPoint(700, 400, 550);
+         << IntPoint(300, 200, 350)
+         << IntPoint(500, 200, 450);
+//         << IntPoint(700, 400, 550);
     tlTrig << IntPoint(200, 600, 1150)
            << IntPoint(200, 500, 1250)
            << IntPoint(300, 600, 1350);
@@ -221,7 +232,7 @@ void joinTest(Paths &test) {
            << IntPoint(600, 300, 4250)
            << IntPoint(500, 200, 4350);
 //    test << base << tlTrig << trTrig << blTrig << brTrig;
-    test << base << trTrig;
+    test << base << blTrig;
 }
 
 void noncontributingIntersectionTest(Paths &test) {

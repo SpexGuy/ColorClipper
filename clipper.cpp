@@ -1783,7 +1783,9 @@ OutPt* Clipper::AddLocalMinPoly(TEdge *e1, TEdge *e2, OutCoord &Pt)
       SlopesEqual(*e, *prevE, m_UseFullRange) &&
       (e->WindDelta != 0) && (prevE->WindDelta != 0))
   {
-    //TODO: COLOR: Join
+#ifdef use_xyz
+    SetEdgeSplitZ(prevE, pt);
+#endif
     OutPt* outPt = AddOutPt(prevE, pt);
     AddJoin(result, outPt, e->Top);
   }
@@ -1963,8 +1965,10 @@ void Clipper::InsertLocalMinimaIntoAEL(const cInt botY)
       SlopesEqual(*lb->PrevInAEL, *lb, m_UseFullRange) &&
       (lb->WindDelta != 0) && (lb->PrevInAEL->WindDelta != 0))
     {
-        //TODO: COLOR: Join
         OutCoord oc(lb->Bot);
+#ifdef use_xyz
+        SetEdgeSplitZ(lb->PrevInAEL, oc);
+#endif
         OutPt *Op2 = AddOutPt(lb->PrevInAEL, oc);
         AddJoin(Op1, Op2, lb->Top);
     }
@@ -1976,8 +1980,10 @@ void Clipper::InsertLocalMinimaIntoAEL(const cInt botY)
         SlopesEqual(*rb->PrevInAEL, *rb, m_UseFullRange) &&
         (rb->WindDelta != 0) && (rb->PrevInAEL->WindDelta != 0))
       {
-          //TODO: COLOR: Join
           OutCoord oc(rb->Bot);
+#ifdef use_xyz
+          SetEdgeSplitZ(rb->PrevInAEL, oc);
+#endif
           OutPt *Op2 = AddOutPt(rb->PrevInAEL, oc);
           AddJoin(Op1, Op2, rb->Top);
       }
@@ -1990,6 +1996,7 @@ void Clipper::InsertLocalMinimaIntoAEL(const cInt botY)
           //nb: For calculating winding counts etc, IntersectEdges() assumes
           //that param1 will be to the Right of param2 ABOVE the intersection ...
           //COLOR: Think about this later, since it produces points.
+          //TODO: Still do this if SlopesEqual?
           IntersectEdges(rb , e , lb->Curr); //order important here
           e = e->NextInAEL;
         }
@@ -2692,7 +2699,7 @@ void Clipper::ProcessHorizontal(TEdge *horzEdge, bool isTopOfScanbeam)
         else if(dir == dLeftToRight)
         {
           IntPoint Pt = IntPoint(e->Curr.X, horzEdge->Curr.Y);
-          IntersectEdges(horzEdge, e, Pt);
+          IntersectEdges(horzEdge, e, Pt); // e->NextInLML?
         }
         else
         {
@@ -2741,8 +2748,10 @@ void Clipper::ProcessHorizontal(TEdge *horzEdge, bool isTopOfScanbeam)
         (ePrev->OutIdx >= 0 && ePrev->Curr.Y > ePrev->Top.Y &&
         SlopesEqual(*horzEdge, *ePrev, m_UseFullRange)))
       {
-        //TODO: COLOR: Join After Horizontal
         OutCoord oc(horzEdge->Bot);
+#ifdef use_xyz
+        SetEdgeSplitZ(ePrev, oc);
+#endif
         OutPt* op2 = AddOutPt(ePrev, oc);
         AddJoin(op1, op2, horzEdge->Top);
       }
@@ -2751,8 +2760,10 @@ void Clipper::ProcessHorizontal(TEdge *horzEdge, bool isTopOfScanbeam)
         eNext->OutIdx >= 0 && eNext->Curr.Y > eNext->Top.Y &&
         SlopesEqual(*horzEdge, *eNext, m_UseFullRange))
       {
-        //TODO: COLOR: Join After Horizontal
         OutCoord oc(horzEdge->Bot);
+#ifdef use_xyz
+        SetEdgeSplitZ(eNext, oc);
+#endif
         OutPt* op2 = AddOutPt(eNext, oc);
         AddJoin(op1, op2, horzEdge->Top);
       }
@@ -3050,6 +3061,9 @@ void Clipper::ProcessEdgesAtTopOfScanbeam(const cInt topY)
     }
   }
 
+  //TODO: Can we switch 3 and 4?
+  // No, because we need the end of the horizontals to be promoted
+  // Wait, that's what (2) does
   //3. Process horizontals at the Top of the scanbeam ...
   ProcessHorizontals(true);
 
@@ -3079,8 +3093,10 @@ void Clipper::ProcessEdgesAtTopOfScanbeam(const cInt topY)
         SlopesEqual(*e, *ePrev, m_UseFullRange) &&
         (e->WindDelta != 0) && (ePrev->WindDelta != 0))
       {
-        //TODO: COLOR: Join
         OutCoord oc(e->Bot);
+#ifdef use_xyz
+        SetEdgeSplitZ(ePrev, oc);
+#endif
         OutPt* op2 = AddOutPt(ePrev, oc);
         AddJoin(op, op2, e->Top);
       }
@@ -3090,8 +3106,10 @@ void Clipper::ProcessEdgesAtTopOfScanbeam(const cInt topY)
         SlopesEqual(*e, *eNext, m_UseFullRange) &&
         (e->WindDelta != 0) && (eNext->WindDelta != 0))
       {
-        //TODO: COLOR: Join
         OutCoord oc(e->Bot);
+#ifdef use_xyz
+        SetEdgeSplitZ(eNext, oc);
+#endif
         OutPt* op2 = AddOutPt(eNext, oc);
         AddJoin(op, op2, e->Top);
       }
@@ -3788,9 +3806,16 @@ void Clipper::SetLocalMinZ(TEdge *e1, TEdge *e2, IntPoint2Z& pt) {
     if (e1->Side != esRight) pt.reverse();
   }
 }
+void Clipper::SetEdgeSplitZ(TEdge *e, IntPoint2Z &pt) {
+  if (e->LMLIsForward) {
+    m_ZFill->OnSplitEdge(e->Bot, pt, e->Top);
+  } else {
+    m_ZFill->OnSplitEdge(e->Top, pt, e->Bot);
+  }
+}
 void Clipper::SetEdgeSplitZ(OutPt *splitPt) {
   // OutPoints are wound in the reverse direction of their Z semantics, so pass them in backwards
-  m_ZFill->OnSplitEdge(splitPt->Next->Pt, splitPt->Pt, splitPt->Prev->Pt);
+  m_ZFill->OnSplitOutEdge(splitPt->Next->Pt, splitPt->Pt, splitPt->Prev->Pt);
 }
 #endif
 
@@ -4746,7 +4771,13 @@ void ZFill::OnIntersection(IntPoint &e1bot, IntPoint &e1top, bool e1Forward,
                            const IntPoint& pt, cInt &z1f, cInt &z1r, cInt &z2f, cInt &z2r) {
 
 }
-void ZFill::OnSplitEdge(IntPoint2Z &prev, IntPoint2Z &pt, IntPoint2Z &next) {
+void ZFill::OnSplitOutEdge(IntPoint2Z &prev, IntPoint2Z &pt, IntPoint2Z &next) {
+
+}
+void ZFill::OnSplitEdge(IntPoint &prev, IntPoint2Z &pt, IntPoint &next) {
+
+}
+void ZFill::OnAppendOverlapping(IntPoint2Z &prev, IntPoint2Z &to) {
 
 }
 void ZFill::OnJoin(IntPoint2Z &e1from, IntPoint2Z &e1to, IntPoint2Z &e2from, IntPoint2Z &e2to) {
