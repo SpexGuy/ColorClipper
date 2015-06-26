@@ -2695,15 +2695,20 @@ void Clipper::ProcessHorizontal(TEdge *horzEdge, bool isTopOfScanbeam)
           DeleteFromAEL(eMaxPair);
           return;
         }
-        else if(dir == dLeftToRight)
-        {
-          IntPoint Pt = IntPoint(e->Curr.X, horzEdge->Curr.Y);
-          IntersectEdges(horzEdge, e, Pt); // e->NextInLML?
-        }
-        else
-        {
-          IntPoint Pt = IntPoint(e->Curr.X, horzEdge->Curr.Y);
-          IntersectEdges( e, horzEdge, Pt);
+        else {
+          // To set z values properly, this needs to be promoted before the intersection is calculated
+          if (isTopOfScanbeam && !IsHorizontal(*e) && IsIntermediate(e, horzEdge->Curr.Y))
+            PromoteIntermediate(e);
+          if(dir == dLeftToRight)
+          {
+            IntPoint Pt = IntPoint(e->Curr.X, horzEdge->Curr.Y);
+            IntersectEdges(horzEdge, e, Pt);
+          }
+          else
+          {
+            IntPoint Pt = IntPoint(e->Curr.X, horzEdge->Curr.Y);
+            IntersectEdges( e, horzEdge, Pt);
+          }
         }
         SwapPositionsInAEL( horzEdge, e );
       }
