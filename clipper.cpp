@@ -1813,9 +1813,9 @@ void Clipper::AddLocalMaxPoly(TEdge *e1, TEdge *e2, OutCoord &Pt)
     e1->OutIdx = Unassigned;
     e2->OutIdx = Unassigned;
   }
-  else if (e1->OutIdx < e2->OutIdx) 
+  else if (e1->OutIdx < e2->OutIdx)
     AppendPolygon(e1, e2);
-  else 
+  else
     AppendPolygon(e2, e1);
 }
 //------------------------------------------------------------------------------
