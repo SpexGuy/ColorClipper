@@ -375,6 +375,7 @@ private:
   OutPt* AddLocalMinPoly(TEdge *e1, TEdge *e2, OutCoord &pt);
   OutPt* AddIntersectionMinPoly(TEdge *e1, TEdge *e2, const IntPoint &pt);
   OutRec* GetOutRec(int idx);
+  void LinkPolygon(OutPt *tail1, OutPt *head1, OutPt *tail2, OutPt *head2);
   void AppendPolygon(TEdge *e1, TEdge *e2);
   void IntersectEdges(TEdge *e1, TEdge *e2, IntPoint &pt);
   OutRec* CreateOutRec();

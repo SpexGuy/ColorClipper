@@ -2310,6 +2310,17 @@ OutRec* Clipper::GetOutRec(int Idx)
   return outrec;
 }
 //------------------------------------------------------------------------------
+void Clipper::LinkPolygon(OutPt *tail1, OutPt *head1, OutPt *tail2, OutPt *head2) {
+  head1->Next = tail2;
+  tail2->Prev = head1;
+  head2->Next = tail1;
+  tail1->Prev = head2;
+#ifdef use_xyz
+  if (head1->Pt == tail2->Pt)
+    // reverse parameter order because OutRecs are wound backwards
+    m_ZFill->OnAppendOverlapping(tail2->Pt, head1->Pt);
+#endif
+}
 
 void Clipper::AppendPolygon(TEdge *e1, TEdge *e2)
 {
@@ -2341,18 +2352,12 @@ void Clipper::AppendPolygon(TEdge *e1, TEdge *e2)
     {
       //z y x a b c
       ReversePolyPtLinks(p2_lft);
-      p2_lft->Next = p1_lft;
-      p1_lft->Prev = p2_lft;
-      p1_rt->Next = p2_rt;
-      p2_rt->Prev = p1_rt;
+      LinkPolygon(p2_rt, p2_lft, p1_lft, p1_rt);
       outRec1->Pts = p2_rt;
     } else
     {
       //x y z a b c
-      p2_rt->Next = p1_lft;
-      p1_lft->Prev = p2_rt;
-      p2_lft->Prev = p1_rt;
-      p1_rt->Next = p2_lft;
+      LinkPolygon(p2_lft, p2_rt, p1_lft, p1_rt);
       outRec1->Pts = p2_lft;
     }
     Side = esLeft;
@@ -2362,17 +2367,11 @@ void Clipper::AppendPolygon(TEdge *e1, TEdge *e2)
     {
       //a b c z y x
       ReversePolyPtLinks(p2_lft);
-      p1_rt->Next = p2_rt;
-      p2_rt->Prev = p1_rt;
-      p2_lft->Next = p1_lft;
-      p1_lft->Prev = p2_lft;
+      LinkPolygon(p1_lft, p1_rt, p2_rt, p2_lft);
     } else
     {
       //a b c x y z
-      p1_rt->Next = p2_lft;
-      p2_lft->Prev = p1_rt;
-      p1_lft->Prev = p2_rt;
-      p2_rt->Next = p1_lft;
+      LinkPolygon(p1_lft, p1_rt, p2_lft, p2_rt);
     }
     Side = esRight;
   }
