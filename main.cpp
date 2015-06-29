@@ -258,6 +258,30 @@ void coincidentEdgeTest(Paths &test) {
           << IntPoint(250, 100, 2350);
     test << partA << partB;
 }
+void nightmareJoinTest(Paths &test) {
+    Path center, tl, tr, bl, br;
+    center << IntPoint(300, 100, 150)
+           << IntPoint(500, 300, 250)
+           << IntPoint(300, 500, 350)
+           << IntPoint(100, 300, 450);
+    tl    << IntPoint(100, 500, 1150)
+          << IntPoint(100, 300, 1250)
+          << IntPoint(300, 300, 1350)
+          << IntPoint(300, 500, 1450);
+    tr    << IntPoint(500, 500, 2150)
+          << IntPoint(300, 500, 2250)
+          << IntPoint(300, 300, 2350)
+          << IntPoint(500, 300, 2450);
+    bl    << IntPoint(100, 100, 3150)
+          << IntPoint(300, 100, 3250)
+          << IntPoint(300, 300, 3350)
+          << IntPoint(100, 300, 3450);
+    br    << IntPoint(500, 100, 4150)
+          << IntPoint(500, 300, 4250)
+          << IntPoint(300, 300, 4350)
+          << IntPoint(300, 100, 4450);
+    test << center << tl << tr << bl << br;
+}
 #endif
 
 int main() {
@@ -267,7 +291,7 @@ int main() {
     clpr.PreserveCollinear(true);
     clpr.Callback(&zFill);
     Paths test;
-    joinTest(test);
+    nightmareJoinTest(test);
     clpr.AddPaths(test, ptSubject, true);
     Paths solution;
     clpr.Execute(ctUnion, solution, pftNonZero);
