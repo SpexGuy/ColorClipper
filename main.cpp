@@ -213,12 +213,11 @@ void joinTest(Paths &test) {
     Path trTrig;
     Path blTrig;
     Path brTrig;
-    base
-//         << IntPoint(400, 700, 150)
+    base << IntPoint(400, 700, 150)
          << IntPoint(100, 400, 250)
          << IntPoint(300, 200, 350)
-         << IntPoint(500, 200, 450);
-//         << IntPoint(700, 400, 550);
+         << IntPoint(500, 200, 450)
+         << IntPoint(700, 400, 550);
     tlTrig << IntPoint(200, 600, 1150)
            << IntPoint(200, 500, 1250)
            << IntPoint(300, 600, 1350);
@@ -231,8 +230,7 @@ void joinTest(Paths &test) {
     brTrig << IntPoint(600, 100, 4150)
            << IntPoint(600, 300, 4250)
            << IntPoint(500, 200, 4350);
-//    test << base << tlTrig << trTrig << blTrig << brTrig;
-    test << base << blTrig;
+    test << base << tlTrig << trTrig << blTrig << brTrig;
 }
 
 void noncontributingIntersectionTest(Paths &test) {
