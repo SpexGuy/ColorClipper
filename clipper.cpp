@@ -2446,8 +2446,19 @@ OutPt* Clipper::AddOutPt(TEdge *e, OutCoord &pt)
     //OutRec.Pts is the 'Left-most' point & OutRec.Pts.Prev is the 'Right-most'
     OutPt* op = outRec->Pts;
 
-    if (ToFront && (pt == op->Pt)) return op;
-    else if (!ToFront && (pt == op->Prev->Pt)) return op->Prev;
+    // Every time AddOutPt is called, the associated edges are changing.
+    // Use OnAppendOverlapping to preserve the appropriate information.
+    if (ToFront && (pt == op->Pt)) {
+#ifdef use_xyz
+      m_ZFill->OnAppendOverlapping(op->Pt, pt);
+#endif
+      return op;
+    } else if (!ToFront && (pt == op->Prev->Pt)) {
+#ifdef use_xyz
+      m_ZFill->OnAppendOverlapping(pt, op->Prev->Pt);
+#endif
+      return op->Prev;
+    }
 
     OutPt* newOp = new OutPt;
     newOp->Idx = outRec->Idx;
@@ -3143,20 +3154,19 @@ void Clipper::FixupOutPolygon(OutRec &outrec)
     }
 
     //test for duplicate points and collinear edges ...
-    bool duplicate = (pp->Pt == pp->Next->Pt) || (pp->Pt == pp->Prev->Pt);
+    bool duplicate = (pp->Pt == pp->Next->Pt);
     bool collinear = !duplicate && SlopesEqual(pp->Prev->Pt, pp->Pt, pp->Next->Pt, m_UseFullRange);
     bool inOrder = collinear && Pt2IsBetweenPt1AndPt3(pp->Prev->Pt, pp->Pt, pp->Next->Pt);
     if (duplicate || (collinear && (!m_PreserveCollinear || !inOrder)))
     {
 #ifdef use_xyz
-      if (!duplicate) {
-        if (!inOrder) {
-          // Two edges overlap
-          m_ZFill->OnRemoveSpike(pp->Next->Pt, pp->Pt, pp->Prev->Pt);
-        } else if (collinear) {
-          //TODO: Coalesce (just an optimization for m_preserveCollinear)
-          //m_ZFill->OnCoalesceCollinear(pp->Prev->Pt, pp->Pt, pp->Next->Pt);
-        }
+      if (duplicate) {
+        m_ZFill->OnAppendOverlapping(pp->Next->Pt, pp->Pt);
+      } else if (!inOrder) {
+        m_ZFill->OnRemoveSpike(pp->Next->Pt, pp->Pt, pp->Prev->Pt);
+      } else if (collinear) {
+        //TODO: Coalesce (just an optimization for m_preserveCollinear)
+        //m_ZFill->OnCoalesceCollinear(pp->Prev->Pt, pp->Pt, pp->Next->Pt);
       }
 #endif
       lastOK = 0;
