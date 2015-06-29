@@ -1766,7 +1766,6 @@ OutPt* Clipper::AddLocalMinPoly(TEdge *e1, TEdge *e2, OutCoord &Pt)
       prevE = e->PrevInAEL;
   } else
   {
-    //TODO: SetLocalMin used to switch edge order here. does it matter?
     result = AddOutPt(e2, pt);
     e1->OutIdx = e2->OutIdx;
     e1->Side = esRight;
@@ -1995,8 +1994,6 @@ void Clipper::InsertLocalMinimaIntoAEL(const cInt botY)
         {
           //nb: For calculating winding counts etc, IntersectEdges() assumes
           //that param1 will be to the Right of param2 ABOVE the intersection ...
-          //COLOR: Think about this later, since it produces points.
-          //TODO: Still do this if SlopesEqual?
           IntersectEdges(rb , e , lb->Curr); //order important here
           e = e->NextInAEL;
         }
@@ -2700,7 +2697,7 @@ void Clipper::ProcessHorizontal(TEdge *horzEdge, bool isTopOfScanbeam)
               eNextHorz = eNextHorz->NextInSEL;
             }
             AddGhostJoin(op1, horzEdge->Bot);
-            AddLocalMaxPoly(horzEdge, eMaxPair, oc); //TODO:[DBG] Is oc the correct pt? - does it matter (coincident coalescence)?
+            AddLocalMaxPoly(horzEdge, eMaxPair, oc);
           }
           DeleteFromAEL(horzEdge);
           DeleteFromAEL(eMaxPair);
@@ -3076,10 +3073,8 @@ void Clipper::ProcessEdgesAtTopOfScanbeam(const cInt topY)
     }
   }
 
-  //TODO: Can we switch 3 and 4?
-  // No, because we need the end of the horizontals to be promoted
-  // Wait, that's what (2) does
   //3. Process horizontals at the Top of the scanbeam ...
+  // mw: This may promote some intermediate edges
   ProcessHorizontals(true);
 
   //4. Promote intermediate vertices ...
