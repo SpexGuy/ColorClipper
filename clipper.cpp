@@ -3815,8 +3815,10 @@ void Clipper::SetLocalMinZ(TEdge *e1, TEdge *e2, IntPoint2Z& pt) {
 void Clipper::SetEdgeSplitZ(TEdge *e, IntPoint2Z &pt) {
   if (e->LMLIsForward) {
     m_ZFill->OnSplitEdge(e->Bot, pt, e->Top);
+    if (e->Side != esLeft) pt.reverse();
   } else {
     m_ZFill->OnSplitEdge(e->Top, pt, e->Bot);
+    if (e->Side != esRight) pt.reverse();
   }
 }
 void Clipper::SetEdgeSplitZ(OutPt *splitPt) {
