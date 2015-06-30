@@ -104,7 +104,7 @@ struct IntPoint2Z {
   cInt correctZ;
   cInt reverseZ;
   IntPoint2Z(cInt x = 0, cInt y = 0, cInt cz = 0, cInt rz = 0) : X(x), Y(y), correctZ(cz), reverseZ(rz) {};
-  IntPoint2Z(const IntPoint& pt) : X(pt.X), Y(pt.Y), correctZ(0), reverseZ(0) {};
+  IntPoint2Z(const IntPoint& pt) : X(pt.X), Y(pt.Y), correctZ(pt.Z), reverseZ(0) {};
   inline void reverse() { std::swap(correctZ, reverseZ); }
   inline cInt getZ() const { return correctZ; }
 };
@@ -172,13 +172,12 @@ struct DoublePoint
 #ifdef use_xyz
 class ZFill {
 public:
-  virtual void OnIntersection(IntPoint& e1bot, IntPoint& e1top, bool e1Forward,
-                              IntPoint& e2bot, IntPoint& e2top, bool e2Forward,
+  virtual void InitializeReverse(IntPoint2Z &curr, IntPoint2Z &next);
+  virtual void OnIntersection(IntPoint2Z& e1bot, IntPoint2Z& e1top, bool e1Forward,
+                              IntPoint2Z& e2bot, IntPoint2Z& e2top, bool e2Forward,
                               const IntPoint& pt, cInt& z1f, cInt& z1r, cInt& z2f, cInt& z2r);
   // Points here are passed in the same order they were in the original polygon
-  virtual void OnPoint(IntPoint &prev, IntPoint &curr, IntPoint &next, IntPoint2Z &pt);
-  virtual void OnSplitOutEdge(IntPoint2Z &prev, IntPoint2Z &pt, IntPoint2Z &next);
-  virtual void OnSplitEdge(IntPoint &prev, IntPoint2Z &pt, IntPoint &next);
+  virtual void OnSplitEdge(IntPoint2Z &prev, IntPoint2Z &pt, IntPoint2Z &next);
   virtual void OnAppendOverlapping(IntPoint2Z &prev, IntPoint2Z &to);
   virtual void OnJoin(IntPoint2Z &e1from, IntPoint2Z &e1to, IntPoint2Z &e2from, IntPoint2Z &e2to);
   virtual void OnRemoveSpike(IntPoint2Z &prev, IntPoint2Z &curr, IntPoint2Z &next);
@@ -288,11 +287,15 @@ public:
   IntRect GetBounds();
   bool PreserveCollinear() {return m_PreserveCollinear;};
   void PreserveCollinear(bool value) {m_PreserveCollinear = value;};
+#ifdef use_xyz
+  void Callback(ZFill *zFill);
+#endif
 protected:
   void DisposeLocalMinimaList();
   TEdge* AddBoundsToLML(TEdge *e, bool IsClosed);
   void PopLocalMinima();
   virtual void Reset();
+  void InitEdge2(TEdge& e, PolyType Pt);
   TEdge* ProcessBound(TEdge* E, bool IsClockwise);
   void DoMinimaLML(TEdge* E1, TEdge* E2, bool IsClosed);
   TEdge* DescendToMin(TEdge *&E);
@@ -306,6 +309,9 @@ protected:
   EdgeList          m_edges;
   bool             m_PreserveCollinear;
   bool             m_HasOpenPaths;
+#ifdef use_xyz
+  ZFill           *m_ZFill; //custom callback
+#endif
 };
 //------------------------------------------------------------------------------
 
@@ -327,9 +333,6 @@ public:
   bool StrictlySimple() {return m_StrictSimple;};
   void StrictlySimple(bool value) {m_StrictSimple = value;};
   //set the callback function for z value filling on intersections (otherwise Z is 0)
-#ifdef use_xyz
-  void Callback(ZFill *zFill);
-#endif
 protected:
   void Reset();
   virtual bool ExecuteInternal();
@@ -349,9 +352,6 @@ private:
   bool             m_ReverseOutput;
   bool             m_UsingPolyTree; 
   bool             m_StrictSimple;
-#ifdef use_xyz
-  ZFill           *m_ZFill; //custom callback 
-#endif
   void SetWindingCount(TEdge& edge);
   bool IsEvenOddFillType(const TEdge& edge) const;
   bool IsEvenOddAltFillType(const TEdge& edge) const;
@@ -377,7 +377,7 @@ private:
   OutRec* GetOutRec(int idx);
   void LinkPolygon(OutPt *tail1, OutPt *head1, OutPt *tail2, OutPt *head2);
   void AppendPolygon(TEdge *e1, TEdge *e2);
-  void IntersectEdges(TEdge *e1, TEdge *e2, IntPoint &pt);
+  void IntersectEdges(TEdge *e1, TEdge *e2, const IntPoint &pt);
   OutRec* CreateOutRec();
   OutPt* AddOutPt(TEdge *e, OutCoord &pt);
   void DisposeAllOutRecs();
@@ -443,7 +443,7 @@ private:
   IntPoint m_lowest;
   PolyNode m_polyNodes;
 #ifdef use_xyz
-  ZFill *m_ZFill;     //see above
+  ZFill *m_ZFill;
 #endif
 
   void FixOrientations();

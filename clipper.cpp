@@ -74,9 +74,9 @@ IntPoint::IntPoint(const IntPoint2Z& pt) : X(pt.X), Y(pt.Y), Z(pt.getZ()) {};
 #endif
 
 struct TEdge {
-  IntPoint Bot;
-  IntPoint Curr;
-  IntPoint Top;
+  OutCoord Bot;
+  OutCoord Curr;
+  OutCoord Top;
   IntPoint Delta;
   double Dx;
   PolyType PolyTyp;
@@ -741,7 +741,7 @@ inline void InitEdge(TEdge* e, TEdge* eNext, TEdge* ePrev, const IntPoint& Pt)
 }
 //------------------------------------------------------------------------------
 
-void InitEdge2(TEdge& e, PolyType Pt)
+void ClipperBase::InitEdge2(TEdge& e, PolyType Pt)
 {
   if (e.Curr.Y >= e.Next->Curr.Y)
   {
@@ -775,7 +775,8 @@ inline void ReverseHorizontal(TEdge &e)
   //adjoining lower edge. [Helpful in the ProcessHorizontal() method.]
   Swap(e.Top.X, e.Bot.X);
 #ifdef use_xyz
-  Swap(e.Top.Z, e.Bot.Z);
+  Swap(e.Top.correctZ, e.Bot.correctZ);
+  Swap(e.Top.reverseZ, e.Bot.reverseZ);
 #endif
 }
 //------------------------------------------------------------------------------
@@ -1126,7 +1127,7 @@ bool ClipperBase::AddPath(const Path &pg, PolyType PolyTyp, bool Closed)
       SlopesEqual(E->Prev->Curr, E->Curr, E->Next->Curr, m_UseFullRange) && 
       (!m_PreserveCollinear ||
       !Pt2IsBetweenPt1AndPt3(E->Prev->Curr, E->Curr, E->Next->Curr)))
-    {
+    { //TODO: Preprocess spikes and coalesces
       //Collinear edges are allowed for open paths but in closed paths
       //the default is to merge adjacent collinear edges into a single edge.
       //However, if the PreserveCollinear property is enabled, only overlapping
@@ -1152,6 +1153,17 @@ bool ClipperBase::AddPath(const Path &pg, PolyType PolyTyp, bool Closed)
     m_HasOpenPaths = true;
     eStart->Prev->OutIdx = Skip;
   }
+
+#ifdef use_xyz
+  //2.5. Setup reverse z values
+  // This must be done separately from 3 because otherwise
+  // it may modify eStart->Curr after InitEdge2(eStart).
+  E = eStart;
+  do {
+    m_ZFill->InitializeReverse(E->Curr, E->Next->Curr);
+    E = E->Next;
+  } while(E != eStart);
+#endif
 
   bool IsFlat = true;
   //3. Do second stage of edge initialization ...
@@ -1354,6 +1366,14 @@ IntRect ClipperBase::GetBounds()
   return result;
 }
 
+#ifdef use_xyz
+void ClipperBase::Callback(ZFill *zFill)
+{
+  m_ZFill = zFill;
+}
+//------------------------------------------------------------------------------
+#endif
+
 //------------------------------------------------------------------------------
 // TClipper methods ...
 //------------------------------------------------------------------------------
@@ -1379,14 +1399,6 @@ Clipper::~Clipper() //destructor
   Clear();
 }
 //------------------------------------------------------------------------------
-
-#ifdef use_xyz  
-void Clipper::Callback(ZFill *zFill)
-{  
-  m_ZFill = zFill;
-}
-//------------------------------------------------------------------------------
-#endif
 
 void Clipper::Reset()
 {
@@ -2030,7 +2042,7 @@ void Clipper::DeleteFromSEL(TEdge *e)
 }
 //------------------------------------------------------------------------------
 
-void Clipper::IntersectEdges(TEdge *e1, TEdge *e2, IntPoint &Pt)
+void Clipper::IntersectEdges(TEdge *e1, TEdge *e2, const IntPoint &Pt)
 {
   bool e1Contributing = ( e1->OutIdx >= 0 );
   bool e2Contributing = ( e2->OutIdx >= 0 );
@@ -3792,28 +3804,22 @@ void Clipper::SetIntersectionMinMaxZ(TEdge *e1, TEdge *e2, const IntPoint &pt, I
 }
 void Clipper::SetIntermediateZ(TEdge *e, IntPoint2Z& pt) {
   if (e->Next == e->NextInLML) {
-    m_ZFill->OnPoint(e->Bot, e->Top, e->NextInLML->Top, pt);
     if (e->Side != esLeft) pt.reverse();
   } else {
-    m_ZFill->OnPoint(e->NextInLML->Top, e->Top, e->Bot, pt);
     if (e->Side != esRight) pt.reverse();
   }
 }
 void Clipper::SetLocalMaxZ(TEdge *e1, TEdge *e2, IntPoint2Z& pt) {
   if (e1->LMLIsForward) {
-    m_ZFill->OnPoint(e1->Bot, e1->Top, e2->Bot, pt);
     if (e1->Side != esLeft) pt.reverse();
   } else {
-    m_ZFill->OnPoint(e2->Bot, e1->Top, e1->Bot, pt);
     if (e1->Side != esRight) pt.reverse();
   }
 }
 void Clipper::SetLocalMinZ(TEdge *e1, TEdge *e2, IntPoint2Z& pt) {
   if (e1->LMLIsForward) {
-    m_ZFill->OnPoint(e2->Top, e1->Bot, e1->Top, pt);
     if (e1->Side != esLeft) pt.reverse();
   } else {
-    m_ZFill->OnPoint(e1->Top, e1->Bot, e2->Top, pt);
     if (e1->Side != esRight) pt.reverse();
   }
 }
@@ -3828,7 +3834,7 @@ void Clipper::SetEdgeSplitZ(TEdge *e, IntPoint2Z &pt) {
 }
 void Clipper::SetEdgeSplitZ(OutPt *splitPt) {
   // OutPoints are wound in the reverse direction of their Z semantics, so pass them in backwards
-  m_ZFill->OnSplitOutEdge(splitPt->Next->Pt, splitPt->Pt, splitPt->Prev->Pt);
+  m_ZFill->OnSplitEdge(splitPt->Next->Pt, splitPt->Pt, splitPt->Prev->Pt);
 }
 #endif
 
@@ -4775,30 +4781,16 @@ std::ostream& operator <<(std::ostream &s, const Paths &p)
 //------------------------------------------------------------------------------
 // ZFill Strategies
 //------------------------------------------------------------------------------
-void ZFill::OnPoint(IntPoint &prev, IntPoint &curr, IntPoint &next, IntPoint2Z &pt) {
+void ZFill::InitializeReverse(IntPoint2Z &curr, IntPoint2Z &next) { }
 
-}
+void ZFill::OnIntersection(IntPoint2Z &e1bot, IntPoint2Z &e1top, bool e1Forward,
+                           IntPoint2Z &e2bot, IntPoint2Z &e2top, bool e2Forward,
+                           const IntPoint& pt, cInt &z1f, cInt &z1r, cInt &z2f, cInt &z2r) { }
+void ZFill::OnSplitEdge(IntPoint2Z &prev, IntPoint2Z &pt, IntPoint2Z &next) { }
 
-void ZFill::OnIntersection(IntPoint &e1bot, IntPoint &e1top, bool e1Forward,
-                           IntPoint &e2bot, IntPoint &e2top, bool e2Forward,
-                           const IntPoint& pt, cInt &z1f, cInt &z1r, cInt &z2f, cInt &z2r) {
-
-}
-void ZFill::OnSplitOutEdge(IntPoint2Z &prev, IntPoint2Z &pt, IntPoint2Z &next) {
-
-}
-void ZFill::OnSplitEdge(IntPoint &prev, IntPoint2Z &pt, IntPoint &next) {
-
-}
-void ZFill::OnAppendOverlapping(IntPoint2Z &prev, IntPoint2Z &to) {
-
-}
-void ZFill::OnJoin(IntPoint2Z &e1from, IntPoint2Z &e1to, IntPoint2Z &e2from, IntPoint2Z &e2to) {
-
-}
-void ZFill::OnRemoveSpike(IntPoint2Z &prev, IntPoint2Z &curr, IntPoint2Z &next) {
-
-}
+void ZFill::OnAppendOverlapping(IntPoint2Z &prev, IntPoint2Z &to) { }
+void ZFill::OnJoin(IntPoint2Z &e1from, IntPoint2Z &e1to, IntPoint2Z &e2from, IntPoint2Z &e2to) { }
+void ZFill::OnRemoveSpike(IntPoint2Z &prev, IntPoint2Z &curr, IntPoint2Z &next) { }
 void ZFill::OnOffset(int step, int steps, IntPoint& z, IntPoint& pt) {
   //just return - points default to 0 z.
   UNUSED(step); UNUSED(steps); UNUSED(z); UNUSED(pt);

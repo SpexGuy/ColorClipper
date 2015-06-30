@@ -9,11 +9,16 @@ using namespace ClipperLib;
 
 #ifdef use_xyz
 cInt CreateZ(const string &name) {
+    // leaky, but program doesn't run long so it's fine
     string *value = new string(name);
     return reinterpret_cast<cInt>(value);
 }
-string &toString(const cInt value) {
-    assert(value >= 10000); // forgot to update the test if this is the case
+string &toString(cInt value) {
+    if (!value) {
+        value = CreateZ("NULL"); // This is a failure.
+        cout << "Null!!!!" << endl;
+    }
+    assert(value >= 10000); // this probably means we forgot to update the test
     return *reinterpret_cast<string *>(value);
 }
 float dist(const IntPoint &p1, const IntPoint &p2) {
@@ -24,9 +29,12 @@ float dist(const IntPoint &p1, const IntPoint &p2) {
 
 class FollowingZFill : public ZFill {
 public:
+    virtual void InitializeReverse(IntPoint2Z &curr, IntPoint2Z &next) override {
+        curr.reverseZ = ReverseZ(Clone(next.correctZ));
+    }
     // Pre-join tasks
-    virtual void OnIntersection(IntPoint& e1bot, IntPoint& e1top, bool e1Forward,
-                                IntPoint& e2bot, IntPoint& e2top, bool e2Forward,
+    virtual void OnIntersection(IntPoint2Z& e1bot, IntPoint2Z& e1top, bool e1Forward,
+                                IntPoint2Z& e2bot, IntPoint2Z& e2top, bool e2Forward,
                                 const IntPoint &pt, cInt& z1f, cInt& z1r, cInt& z2f, cInt& z2r) override {
         // I was really hoping that there was some great gestalt of understanding for this.
         // But I can't see it. This routine is the result of enumerating all 4 cases.
@@ -41,14 +49,6 @@ public:
         SplitIntersection(e1bot, e1top, e1Forward, pt, z1f, z2r);
         SplitIntersection(e2bot, e2top, e2Forward, pt, z2f, z1r);
     }
-    virtual void OnPoint(IntPoint& prev, IntPoint& curr, IntPoint& next, IntPoint2Z& pt) override {
-        pt.correctZ = curr.Z;
-        pt.reverseZ = ReverseZ(next.Z);
-    }
-    virtual void OnSplitEdge(IntPoint &prev, IntPoint2Z &pt, IntPoint &next) override {
-        pt.correctZ = StripBegin(next.Z, prev, next, pt);
-        pt.reverseZ = ReverseZ(StripEnd(next.Z, prev, next, pt));
-    }
     virtual void OnAppendOverlapping(IntPoint2Z &from, IntPoint2Z &to) override {
         to.correctZ = from.correctZ;
         from.reverseZ = to.reverseZ;
@@ -60,9 +60,9 @@ public:
         e2to.correctZ = e1from.correctZ;
         e2to.reverseZ = e1from.reverseZ;
     }
-    virtual void OnSplitOutEdge(IntPoint2Z &prev, IntPoint2Z &pt, IntPoint2Z &next) override {
-        SplitEdge(prev, pt, next, prev.correctZ, pt.correctZ, next.correctZ);
-        SplitEdge(next, pt, prev, next.reverseZ, pt.reverseZ, prev.reverseZ);
+    virtual void OnSplitEdge(IntPoint2Z &prev, IntPoint2Z &pt, IntPoint2Z &next) override {
+        pt.correctZ = StripBegin(next.correctZ, prev, next, pt);
+        pt.reverseZ = StripBegin(prev.reverseZ, next, prev, pt);
     }
     virtual void OnRemoveSpike(IntPoint2Z &prev, IntPoint2Z &curr, IntPoint2Z &next) override {
         RemoveSpike(prev, curr, next, prev.correctZ, curr.correctZ, next.correctZ);
@@ -77,23 +77,15 @@ protected:
     virtual cInt ReverseZ(cInt z) {return z;}
     virtual cInt Clone(cInt z) {return z;}
     virtual cInt StripBegin(cInt z, const IntPoint& from, const IntPoint& to, const IntPoint& pt) {return z;}
-    virtual cInt StripEnd  (cInt z, const IntPoint& from, const IntPoint& to, const IntPoint& pt) {return z;}
 
 private:
-    void SplitEdge(const IntPoint &from, const IntPoint &pt, const IntPoint &to, cInt &fromZ, cInt &ptZ, cInt &toZ) {
-        ptZ = StripBegin(toZ, from, to, pt);
-    }
-    void SplitIntersection(IntPoint &bot, IntPoint &top, bool forward, const IntPoint &pt, cInt &zf, cInt &zr) {
+    void SplitIntersection(IntPoint2Z &bot, IntPoint2Z &top, bool forward, const IntPoint &pt, cInt &zf, cInt &zr) {
         if (forward) {
-            // set z1f=b(f), z2r=r(e(f)), e1top.Z=e(f)
-            zf = StripBegin(top.Z, bot, top, pt);
-            zr = ReverseZ(StripEnd(top.Z, bot, top, pt));
-            top.Z = StripEnd(top.Z, bot, top, pt);
+            zf = StripBegin(top.correctZ, bot, top, pt);
+            zr = StripBegin(bot.reverseZ, top, bot, pt);
         } else {
-            // set z1f=r(e(a)), z2r=b(a), e1bot.Z=b(a)
-            zf = ReverseZ(StripEnd(bot.Z, top, bot, pt));
-            zr = StripBegin(bot.Z, top, bot, pt);
-            bot.Z = StripBegin(bot.Z, top, bot, pt);
+            zf = StripBegin(top.reverseZ, bot, top, pt);
+            zr = StripBegin(bot.correctZ, top, bot, pt);
         }
     }
     void RemoveSpike(const IntPoint &from, const IntPoint &spike, const IntPoint &to, cInt &fromZ, const cInt spikeZ, cInt &toZ) {
@@ -103,13 +95,13 @@ private:
             if (abs(from.X - spike.X) > abs(to.X - spike.X)) { // is from further than to?
                 toZ = StripBegin(spikeZ, from, spike, to);
             } else {
-                toZ = StripEnd(toZ, spike, to, from);
+                StripBegin(toZ, spike, to, from);
             }
         } else {
             if (abs(from.Y - spike.Y) > abs(to.Y - spike.Y)) { // is from further than to?
                 toZ = StripBegin(spikeZ, from, spike, to);
             } else {
-                toZ = StripEnd(toZ, spike, to, from);
+                StripBegin(toZ, spike, to, from);
             }
         }
     }
@@ -122,11 +114,6 @@ protected:
     virtual cInt StripBegin(cInt z, const IntPoint& from, const IntPoint& to, const IntPoint& pt) override {
         stringstream ss;
         ss << "b(" << toString(z) << ", " << pt.X - from.X << "," << pt.Y - from.Y << ")";
-        return CreateZ(ss.str());
-    }
-    virtual cInt StripEnd  (cInt z, const IntPoint& from, const IntPoint& to, const IntPoint& pt) override {
-        stringstream ss;
-        ss << "e(" << toString(z) << ", " << pt.X - to.X << "," << pt.Y - to.Y << ")";
         return CreateZ(ss.str());
     }
 };
@@ -315,7 +302,7 @@ int main() {
     clpr.PreserveCollinear(true);
     clpr.Callback(&zFill);
     Paths test;
-    intersectionTest(test);
+    figure8Test(test);
     clpr.AddPaths(test, ptSubject, true);
     Paths solution;
     clpr.Execute(ctUnion, solution, pftNonZero);
