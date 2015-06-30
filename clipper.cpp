@@ -1117,26 +1117,38 @@ bool ClipperBase::AddPath(const Path &pg, PolyType PolyTyp, bool Closed)
     {
       if (E == E->Next) break;
       if (E == eStart) eStart = E->Next;
+#ifdef use_xyz
+      m_ZFill->OnAppendOverlapping(E->Curr, E->Next->Curr);
+#endif
       E = RemoveEdge(E);
       eLoopStop = E;
       continue;
     }
     if (E->Prev == E->Next) 
       break; //only two vertices
-    else if (Closed &&
-      SlopesEqual(E->Prev->Curr, E->Curr, E->Next->Curr, m_UseFullRange) && 
-      (!m_PreserveCollinear ||
-      !Pt2IsBetweenPt1AndPt3(E->Prev->Curr, E->Curr, E->Next->Curr)))
-    { //TODO: Preprocess spikes and coalesces
-      //Collinear edges are allowed for open paths but in closed paths
-      //the default is to merge adjacent collinear edges into a single edge.
-      //However, if the PreserveCollinear property is enabled, only overlapping
-      //collinear edges (ie spikes) will be removed from closed paths.
-      if (E == eStart) eStart = E->Next;
-      E = RemoveEdge(E);
-      E = E->Prev;
-      eLoopStop = E;
-      continue;
+    else {
+      bool collinear = Closed && SlopesEqual(E->Prev->Curr, E->Curr, E->Next->Curr, m_UseFullRange);
+      bool inOrder = collinear && Pt2IsBetweenPt1AndPt3(E->Prev->Curr, E->Curr, E->Next->Curr);
+      if (collinear && (!m_PreserveCollinear || !inOrder))
+      {
+        //Collinear edges are allowed for open paths but in closed paths
+        //the default is to merge adjacent collinear edges into a single edge.
+        //However, if the PreserveCollinear property is enabled, only overlapping
+        //collinear edges (ie spikes) will be removed from closed paths.
+        if (E == eStart) eStart = E->Next;
+#ifdef use_xyz
+        if (!inOrder) {
+          m_ZFill->OnRemoveSpike(E->Prev->Curr, E->Curr, E->Next->Curr);
+        } else {
+          //TODO: Coalesce (just an optimization for m_preserveCollinear)
+          //m_ZFill->OnCoalesceCollinear(pp->Prev->Pt, pp->Pt, pp->Next->Pt);
+        }
+#endif
+        E = RemoveEdge(E);
+        E = E->Prev;
+        eLoopStop = E;
+        continue;
+      }
     }
     E = E->Next;
     if ((E == eLoopStop) || (!Closed && E->Next == eStart)) break;

@@ -59,7 +59,6 @@ public:
     }
     virtual void OnRemoveSpike(IntPoint2Z &prev, IntPoint2Z &curr, IntPoint2Z &next) override {
         RemoveSpike(prev, curr, next, prev.correctZ, curr.correctZ, next.correctZ);
-        RemoveSpike(next, curr, prev, next.reverseZ, curr.reverseZ, prev.reverseZ);
     }
 
     virtual void OnOffset(int step, int steps, IntPoint& source, IntPoint& dest) override {
