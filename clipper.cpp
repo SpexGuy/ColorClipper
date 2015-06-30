@@ -3807,9 +3807,11 @@ void Clipper::SetIntersectionZ(TEdge *e1, TEdge *e2, const IntPoint &pt, cInt &e
   bool e2Backwards = e2->OutIdx >= 0 && ((e2->Side == esLeft) ^ (e2->LMLIsForward));
   if (e1Backwards) e1Bot.reverse();
   if (e2Backwards) e2Bot.reverse();
-  m_ZFill->OnIntersection(e1Bot, e1->Top, e1->LMLIsForward,
-                          e2Bot, e2->Top, e2->LMLIsForward,
-                          pt, e1f, e2r, e2f, e1r);
+  IntPoint2Z &e1From = e1->LMLIsForward ? e1Bot : e1->Top;
+  IntPoint2Z &e1To   = e1->LMLIsForward ? e1->Top : e1Bot;
+  IntPoint2Z &e2From = e2->LMLIsForward ? e2Bot : e2->Top;
+  IntPoint2Z &e2To   = e2->LMLIsForward ? e2->Top : e2Bot;
+  m_ZFill->OnIntersection(e1From, e1To, e2From, e2To, pt, e1f, e1r, e2f, e2r);
   // Be sure to set the emitted points back to their original state
   if (e1Backwards) e1Bot.reverse();
   if (e2Backwards) e2Bot.reverse();
@@ -4805,8 +4807,8 @@ std::ostream& operator <<(std::ostream &s, const Paths &p)
 //------------------------------------------------------------------------------
 void ZFill::InitializeReverse(IntPoint2Z &curr, IntPoint2Z &next) { }
 
-void ZFill::OnIntersection(const IntPoint2Z &e1bot, const IntPoint2Z &e1top, bool e1Forward,
-                           const IntPoint2Z &e2bot, const IntPoint2Z &e2top, bool e2Forward,
+void ZFill::OnIntersection(const IntPoint2Z &e1bot, const IntPoint2Z &e1top,
+                           const IntPoint2Z &e2bot, const IntPoint2Z &e2top,
                            const IntPoint& pt, cInt &z1f, cInt &z1r, cInt &z2f, cInt &z2r) { }
 void ZFill::OnSplitEdge(const IntPoint2Z &prev, IntPoint2Z &pt, const IntPoint2Z &next) { }
 

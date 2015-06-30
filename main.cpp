@@ -34,21 +34,13 @@ public:
         ReverseZ(curr.reverseZ);
     }
     // Pre-join tasks
-    virtual void OnIntersection(const IntPoint2Z& e1bot, const IntPoint2Z& e1top, bool e1Forward,
-                                const IntPoint2Z& e2bot, const IntPoint2Z& e2top, bool e2Forward,
+    virtual void OnIntersection(const IntPoint2Z&e1From, const IntPoint2Z&e1To,
+                                const IntPoint2Z&e2From, const IntPoint2Z&e2To,
                                 const IntPoint &pt, cInt& z1f, cInt& z1r, cInt& z2f, cInt& z2r) override {
-        // I was really hoping that there was some great gestalt of understanding for this.
-        // But I can't see it. This routine is the result of enumerating all 4 cases.
-
-        // The problem decomposes nicely into one problem repeated independently on each edge.
-        // a     d
-        //  \   /
-        // z1f z2f
-        // z1r z2r
-        //  /   \
-        // c     f
-        SplitIntersection(e1bot, e1top, e1Forward, pt, z1f, z2r);
-        SplitIntersection(e2bot, e2top, e2Forward, pt, z2f, z1r);
+        z1f = StripBegin(e1To.correctZ, e1From, e1To, pt);
+        z1r = StripBegin(e1From.reverseZ, e1To, e1From, pt);
+        z2f = StripBegin(e2To.correctZ, e2From, e2To, pt);
+        z2r = StripBegin(e2From.reverseZ, e2To, e2From, pt);
     }
     virtual void OnAppendOverlapping(IntPoint2Z &from, IntPoint2Z &to) override {
         to.correctZ = from.correctZ;
@@ -80,15 +72,6 @@ protected:
     virtual cInt StripBegin(cInt z, const IntPoint& from, const IntPoint& to, const IntPoint& pt) {return z;}
 
 private:
-    void SplitIntersection(const IntPoint2Z &bot, const IntPoint2Z &top, bool forward, const IntPoint &pt, cInt &zf, cInt &zr) {
-        if (forward) {
-            zf = StripBegin(top.correctZ, bot, top, pt);
-            zr = StripBegin(bot.reverseZ, top, bot, pt);
-        } else {
-            zr = StripBegin(bot.correctZ, top, bot, pt);
-            zf = StripBegin(top.reverseZ, bot, top, pt);
-        }
-    }
     void RemoveSpike(const IntPoint2Z &from, const IntPoint2Z &spike, const IntPoint2Z &to, cInt &fromZ, const cInt &spikeZ, cInt &toZ) {
         if (from == to) {
             toZ = fromZ;
