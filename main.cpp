@@ -14,10 +14,10 @@ cInt CreateZ(const string &name) {
     return reinterpret_cast<cInt>(value);
 }
 string &toString(cInt value) {
-    if (!value) {
-        value = CreateZ("NULL"); // This is a failure.
-        cout << "Null!!!!" << endl;
-    }
+//    if (!value) {
+//        value = CreateZ("NULL"); // This is a failure.
+//        cout << "Null!!!!" << endl;
+//    }
     assert(value >= 10000); // this probably means we forgot to update the test
     return *reinterpret_cast<string *>(value);
 }
@@ -96,11 +96,19 @@ protected:
     virtual void ReverseZ(cInt z) override {toString(z) = "r("+toString(z)+")";}
     virtual cInt Clone(cInt z) override {return CreateZ(toString(z));}
     virtual cInt StripBegin(cInt z, const IntPoint& from, const IntPoint& to, const IntPoint& pt) override {
-        stringstream begin, end;
-        begin << "b(" << toString(z) << ", " << pt.X - from.X << "," << pt.Y - from.Y << ")";
-        end   << "e(" << toString(z) << ", " << pt.X - to.X   << "," << pt.Y - to.Y   << ")";
-        toString(z) = end.str();
-        return CreateZ(begin.str());
+        if (pt == from) {
+            // strip nothing
+            return 0; // the return value will be thrown away by coalescence.
+        } else if (pt == to) {
+            // strip everything
+            return z; // the current value will be thrown away by coalescence
+        } else {
+            stringstream begin, end;
+            begin << "b(" << toString(z) << ", " << pt.X - from.X << "," << pt.Y - from.Y << ")";
+            end   << "e(" << toString(z) << ", " << pt.X - to.X   << "," << pt.Y - to.Y   << ")";
+            toString(z) = end.str();
+            return CreateZ(begin.str());
+        }
     }
 };
 
