@@ -210,37 +210,37 @@ void joinTest(Paths &test) {
     Path trTrig;
     Path blTrig;
     Path brTrig;
-    base << IntPoint(400, 700, 150)
-         << IntPoint(100, 400, 250)
-         << IntPoint(300, 200, 350)
-         << IntPoint(500, 200, 450)
-         << IntPoint(700, 400, 550);
-    tlTrig << IntPoint(200, 600, 1150)
-           << IntPoint(200, 500, 1250)
-           << IntPoint(300, 600, 1350);
-    trTrig << IntPoint(600, 600, 2150)
-           << IntPoint(500, 600, 2250)
-           << IntPoint(600, 500, 2350);
-    blTrig << IntPoint(200, 100, 3150)
-           << IntPoint(300, 200, 3250)
-           << IntPoint(200, 300, 3350);
-    brTrig << IntPoint(600, 100, 4150)
-           << IntPoint(600, 300, 4250)
-           << IntPoint(500, 200, 4350);
+    base << IntPoint(400, 700, CreateZ("C1"))
+         << IntPoint(100, 400, CreateZ("C2"))
+         << IntPoint(300, 200, CreateZ("C3"))
+         << IntPoint(500, 200, CreateZ("C4"))
+         << IntPoint(700, 400, CreateZ("C5"));
+    tlTrig << IntPoint(200, 600, CreateZ("Tl1"))
+           << IntPoint(200, 500, CreateZ("Tl2"))
+           << IntPoint(300, 600, CreateZ("Tl3"));
+    trTrig << IntPoint(600, 600, CreateZ("Tr1"))
+           << IntPoint(500, 600, CreateZ("Tr2"))
+           << IntPoint(600, 500, CreateZ("Tr3"));
+    blTrig << IntPoint(200, 100, CreateZ("Bl1"))
+           << IntPoint(300, 200, CreateZ("Bl2"))
+           << IntPoint(200, 300, CreateZ("Bl3"));
+    brTrig << IntPoint(600, 100, CreateZ("Br1"))
+           << IntPoint(600, 300, CreateZ("Br2"))
+           << IntPoint(500, 200, CreateZ("Br3"));
     test << base << tlTrig << trTrig << blTrig << brTrig;
 }
 
 void noncontributingIntersectionTest(Paths &test) {
     Path partA;
     Path partB;
-    partA << IntPoint(100, 400, 1150)
-          << IntPoint(400, 100, 1250)
-          << IntPoint(500, 200, 1350)
-          << IntPoint(200, 500, 1450);
-    partB << IntPoint(400, 500, 2150)
-          << IntPoint(100, 200, 2250)
-          << IntPoint(200, 100, 2350)
-          << IntPoint(500, 400, 2450);
+    partA << IntPoint(100, 400, CreateZ("A1"))
+          << IntPoint(400, 100, CreateZ("A2"))
+          << IntPoint(500, 200, CreateZ("A3"))
+          << IntPoint(200, 500, CreateZ("A4"));
+    partB << IntPoint(400, 500, CreateZ("B1"))
+          << IntPoint(100, 200, CreateZ("B2"))
+          << IntPoint(200, 100, CreateZ("B3"))
+          << IntPoint(500, 400, CreateZ("B4"));
     test << partA << partB;
 }
 
@@ -288,7 +288,7 @@ int main() {
     clpr.PreserveCollinear(true);
     clpr.Callback(&zFill);
     Paths test;
-    figure8Test(test);
+    joinTest(test);
     clpr.AddPaths(test, ptSubject, true);
     Paths solution;
     clpr.Execute(ctUnion, solution, pftNonZero);
