@@ -407,7 +407,7 @@ private:
   void FixupFirstLefts1(OutRec* OldOutRec, OutRec* NewOutRec);
   void FixupFirstLefts2(OutRec* OldOutRec, OutRec* NewOutRec);
 #ifdef use_xyz
-  IntPoint2Z &LastEmitted(TEdge *e);
+  IntPoint2Z LastEmitted(TEdge *e);
   void SetIntermediateZ(TEdge *e, IntPoint2Z& pt);
   void SetLocalMaxZ(TEdge* e1, TEdge* e2, IntPoint2Z& pt);
   void SetLocalMinZ(TEdge* e1, TEdge* e2, IntPoint2Z& pt);

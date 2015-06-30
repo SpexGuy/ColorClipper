@@ -3788,25 +3788,24 @@ void Clipper::JoinCommonEdges()
 }
 
 #ifdef use_xyz
-IntPoint2Z &Clipper::LastEmitted(TEdge *e) {
+IntPoint2Z Clipper::LastEmitted(TEdge *e) {
   if (e->OutIdx >= 0) {
     bool onFront = (e->Side == esLeft);
     OutRec *outRec = m_PolyOuts[e->OutIdx];
-    if (onFront) return outRec->Pts->Pt;
-    else return outRec->Pts->Prev->Pt;
+    IntPoint2Z pt;
+    if (onFront) pt = outRec->Pts->Pt;
+    else pt = outRec->Pts->Prev->Pt;
+    // Make sure that the winding guess for the emitted point is the same as the original
+    if ((e->Side == esLeft) ^ (e->LMLIsForward))
+      pt.reverse();
+    return pt;
   } else {
     return e->Bot;
   }
 }
 void Clipper::SetIntersectionZ(TEdge *e1, TEdge *e2, const IntPoint &pt, cInt &e1f, cInt &e1r, cInt &e2f, cInt &e2r) {
-  IntPoint2Z &e1Bot = LastEmitted(e1);
-  IntPoint2Z &e2Bot = LastEmitted(e2);
-  // Make sure that the winding guess for the emitted point is the
-  // same as the guess for the top point
-  bool e1Backwards = e1->OutIdx >= 0 && ((e1->Side == esLeft) ^ (e1->LMLIsForward));
-  bool e2Backwards = e2->OutIdx >= 0 && ((e2->Side == esLeft) ^ (e2->LMLIsForward));
-  if (e1Backwards) e1Bot.reverse();
-  if (e2Backwards) e2Bot.reverse();
+  IntPoint2Z e1Bot = LastEmitted(e1);
+  IntPoint2Z e2Bot = LastEmitted(e2);
   IntPoint2Z &e1From = e1->LMLIsForward ? e1Bot : e1->Top;
   IntPoint2Z &e1To   = e1->LMLIsForward ? e1->Top : e1Bot;
   IntPoint2Z &e2From = e2->LMLIsForward ? e2Bot : e2->Top;
@@ -3814,9 +3813,6 @@ void Clipper::SetIntersectionZ(TEdge *e1, TEdge *e2, const IntPoint &pt, cInt &e
   m_ZFill->OnIntersection(e1From, e1To, e2From, e2To, pt, e1f, e1r, e2f, e2r);
   if (!e1->LMLIsForward) std::swap(e1f, e1r);
   if (!e2->LMLIsForward) std::swap(e2f, e2r);
-  // Be sure to set the emitted points back to their original state
-  if (e1Backwards) e1Bot.reverse();
-  if (e2Backwards) e2Bot.reverse();
 }
 void Clipper::SetIntersectionIntermediateZ(TEdge *e1, TEdge *e2, const IntPoint &pt, IntPoint2Z &p1, IntPoint2Z &p2) {
   SetIntersectionZ(e1, e2, pt, p1.correctZ, p2.reverseZ, p2.correctZ, p1.reverseZ);
@@ -3851,10 +3847,10 @@ void Clipper::SetLocalMinZ(TEdge *e1, TEdge *e2, IntPoint2Z& pt) {
 }
 void Clipper::SetEdgeSplitZ(TEdge *e, IntPoint2Z &pt) {
   if (e->LMLIsForward) {
-    m_ZFill->OnSplitEdge(e->Bot, pt, e->Top);
+    m_ZFill->OnSplitEdge(LastEmitted(e), pt, e->Top);
     if (e->Side != esLeft) pt.reverse();
   } else {
-    m_ZFill->OnSplitEdge(e->Top, pt, e->Bot);
+    m_ZFill->OnSplitEdge(e->Top, pt, LastEmitted(e));
     if (e->Side != esRight) pt.reverse();
   }
 }
