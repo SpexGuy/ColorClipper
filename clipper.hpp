@@ -173,11 +173,11 @@ struct DoublePoint
 class ZFill {
 public:
   virtual void InitializeReverse(IntPoint2Z &curr, IntPoint2Z &next);
-  virtual void OnIntersection(IntPoint2Z& e1bot, IntPoint2Z& e1top, bool e1Forward,
-                              IntPoint2Z& e2bot, IntPoint2Z& e2top, bool e2Forward,
+  virtual void OnIntersection(const IntPoint2Z& e1bot, const IntPoint2Z& e1top, bool e1Forward,
+                              const IntPoint2Z& e2bot, const IntPoint2Z& e2top, bool e2Forward,
                               const IntPoint& pt, cInt& z1f, cInt& z1r, cInt& z2f, cInt& z2r);
   // Points here are passed in the same order they were in the original polygon
-  virtual void OnSplitEdge(IntPoint2Z &prev, IntPoint2Z &pt, IntPoint2Z &next);
+  virtual void OnSplitEdge(const IntPoint2Z &prev, IntPoint2Z &pt, const IntPoint2Z &next);
   virtual void OnAppendOverlapping(IntPoint2Z &prev, IntPoint2Z &to);
   virtual void OnJoin(IntPoint2Z &e1from, IntPoint2Z &e1to, IntPoint2Z &e2from, IntPoint2Z &e2to);
   virtual void OnRemoveSpike(IntPoint2Z &prev, IntPoint2Z &curr, IntPoint2Z &next);

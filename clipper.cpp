@@ -4805,10 +4805,10 @@ std::ostream& operator <<(std::ostream &s, const Paths &p)
 //------------------------------------------------------------------------------
 void ZFill::InitializeReverse(IntPoint2Z &curr, IntPoint2Z &next) { }
 
-void ZFill::OnIntersection(IntPoint2Z &e1bot, IntPoint2Z &e1top, bool e1Forward,
-                           IntPoint2Z &e2bot, IntPoint2Z &e2top, bool e2Forward,
+void ZFill::OnIntersection(const IntPoint2Z &e1bot, const IntPoint2Z &e1top, bool e1Forward,
+                           const IntPoint2Z &e2bot, const IntPoint2Z &e2top, bool e2Forward,
                            const IntPoint& pt, cInt &z1f, cInt &z1r, cInt &z2f, cInt &z2r) { }
-void ZFill::OnSplitEdge(IntPoint2Z &prev, IntPoint2Z &pt, IntPoint2Z &next) { }
+void ZFill::OnSplitEdge(const IntPoint2Z &prev, IntPoint2Z &pt, const IntPoint2Z &next) { }
 
 void ZFill::OnAppendOverlapping(IntPoint2Z &prev, IntPoint2Z &to) { }
 void ZFill::OnJoin(IntPoint2Z &e1from, IntPoint2Z &e1to, IntPoint2Z &e2from, IntPoint2Z &e2to) { }

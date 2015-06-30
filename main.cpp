@@ -34,8 +34,8 @@ public:
         ReverseZ(curr.reverseZ);
     }
     // Pre-join tasks
-    virtual void OnIntersection(IntPoint2Z& e1bot, IntPoint2Z& e1top, bool e1Forward,
-                                IntPoint2Z& e2bot, IntPoint2Z& e2top, bool e2Forward,
+    virtual void OnIntersection(const IntPoint2Z& e1bot, const IntPoint2Z& e1top, bool e1Forward,
+                                const IntPoint2Z& e2bot, const IntPoint2Z& e2top, bool e2Forward,
                                 const IntPoint &pt, cInt& z1f, cInt& z1r, cInt& z2f, cInt& z2r) override {
         // I was really hoping that there was some great gestalt of understanding for this.
         // But I can't see it. This routine is the result of enumerating all 4 cases.
@@ -61,7 +61,7 @@ public:
         e2to.correctZ = e1from.correctZ;
         e2to.reverseZ = e1from.reverseZ;
     }
-    virtual void OnSplitEdge(IntPoint2Z &prev, IntPoint2Z &pt, IntPoint2Z &next) override {
+    virtual void OnSplitEdge(const IntPoint2Z &prev, IntPoint2Z &pt, const IntPoint2Z &next) override {
         pt.correctZ = StripBegin(next.correctZ, prev, next, pt);
         pt.reverseZ = StripBegin(prev.reverseZ, next, prev, pt);
     }
@@ -80,16 +80,16 @@ protected:
     virtual cInt StripBegin(cInt z, const IntPoint& from, const IntPoint& to, const IntPoint& pt) {return z;}
 
 private:
-    void SplitIntersection(IntPoint2Z &bot, IntPoint2Z &top, bool forward, const IntPoint &pt, cInt &zf, cInt &zr) {
+    void SplitIntersection(const IntPoint2Z &bot, const IntPoint2Z &top, bool forward, const IntPoint &pt, cInt &zf, cInt &zr) {
         if (forward) {
             zf = StripBegin(top.correctZ, bot, top, pt);
             zr = StripBegin(bot.reverseZ, top, bot, pt);
         } else {
-            zf = StripBegin(top.reverseZ, bot, top, pt);
             zr = StripBegin(bot.correctZ, top, bot, pt);
+            zf = StripBegin(top.reverseZ, bot, top, pt);
         }
     }
-    void RemoveSpike(const IntPoint &from, const IntPoint &spike, const IntPoint &to, cInt &fromZ, const cInt spikeZ, cInt &toZ) {
+    void RemoveSpike(const IntPoint2Z &from, const IntPoint2Z &spike, const IntPoint2Z &to, cInt &fromZ, const cInt &spikeZ, cInt &toZ) {
         if (from == to) {
             toZ = fromZ;
         } else if (abs(from.X - spike.X) > abs(from.Y - spike.Y)) { // is x more precise than y?
