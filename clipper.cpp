@@ -3788,17 +3788,39 @@ void Clipper::JoinCommonEdges()
 }
 
 #ifdef use_xyz
+IntPoint2Z &Clipper::LastEmitted(TEdge *e) {
+  if (e->OutIdx >= 0) {
+    bool onFront = (e->Side == esLeft);
+    OutRec *outRec = m_PolyOuts[e->OutIdx];
+    if (onFront) return outRec->Pts->Pt;
+    else return outRec->Pts->Prev->Pt;
+  } else {
+    return e->Bot;
+  }
+}
+void Clipper::SetIntersectionZ(TEdge *e1, TEdge *e2, const IntPoint &pt, cInt &e1f, cInt &e1r, cInt &e2f, cInt &e2r) {
+  IntPoint2Z &e1Bot = LastEmitted(e1);
+  IntPoint2Z &e2Bot = LastEmitted(e2);
+  // Make sure that the winding guess for the emitted point is the
+  // same as the guess for the top point
+  bool e1Backwards = e1->OutIdx >= 0 && ((e1->Side == esLeft) ^ (e1->LMLIsForward));
+  bool e2Backwards = e2->OutIdx >= 0 && ((e2->Side == esLeft) ^ (e2->LMLIsForward));
+  if (e1Backwards) e1Bot.reverse();
+  if (e2Backwards) e2Bot.reverse();
+  m_ZFill->OnIntersection(e1Bot, e1->Top, e1->LMLIsForward,
+                          e2Bot, e2->Top, e2->LMLIsForward,
+                          pt, e1f, e2r, e2f, e1r);
+  // Be sure to set the emitted points back to their original state
+  if (e1Backwards) e1Bot.reverse();
+  if (e2Backwards) e2Bot.reverse();
+}
 void Clipper::SetIntersectionIntermediateZ(TEdge *e1, TEdge *e2, const IntPoint &pt, IntPoint2Z &p1, IntPoint2Z &p2) {
-  m_ZFill->OnIntersection(e1->Bot, e1->Top, e1->LMLIsForward,
-                          e2->Bot, e2->Top, e2->LMLIsForward,
-                          pt, p1.correctZ, p1.reverseZ, p2.correctZ, p2.reverseZ);
+  SetIntersectionZ(e1, e2, pt, p1.correctZ, p2.reverseZ, p2.correctZ, p1.reverseZ);
   if (e1->Side == esRight) p1.reverse();
   if (e2->Side == esRight) p2.reverse();
 }
 void Clipper::SetIntersectionMinMaxZ(TEdge *e1, TEdge *e2, const IntPoint &pt, IntPoint2Z &min, IntPoint2Z &max) {
-  m_ZFill->OnIntersection(e1->Bot, e1->Top, e1->LMLIsForward,
-                          e2->Bot, e2->Top, e2->LMLIsForward,
-                          pt, max.correctZ, min.correctZ, max.reverseZ, min.reverseZ);
+  SetIntersectionZ(e1, e2, pt, max.correctZ, min.reverseZ, max.reverseZ, min.correctZ);
   if (e1->Side == esRight) max.reverse();
   if (e2->Side == esRight) min.reverse();
 }

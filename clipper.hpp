@@ -407,9 +407,11 @@ private:
   void FixupFirstLefts1(OutRec* OldOutRec, OutRec* NewOutRec);
   void FixupFirstLefts2(OutRec* OldOutRec, OutRec* NewOutRec);
 #ifdef use_xyz
+  IntPoint2Z &LastEmitted(TEdge *e);
   void SetIntermediateZ(TEdge *e, IntPoint2Z& pt);
   void SetLocalMaxZ(TEdge* e1, TEdge* e2, IntPoint2Z& pt);
   void SetLocalMinZ(TEdge* e1, TEdge* e2, IntPoint2Z& pt);
+  void SetIntersectionZ(TEdge *e1, TEdge *e2, const IntPoint &pt, cInt &e1f, cInt &e1r, cInt &e2f, cInt &e2r);
   void SetIntersectionIntermediateZ(TEdge *e1, TEdge *e2, const IntPoint &pt, IntPoint2Z &p1, IntPoint2Z &p2);
   void SetIntersectionMinMaxZ(TEdge *e1, TEdge *e2, const IntPoint &pt, IntPoint2Z &min, IntPoint2Z &max);
   void SetEdgeSplitZ(OutPt *splitPt);
