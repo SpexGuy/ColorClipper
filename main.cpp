@@ -1,12 +1,27 @@
 #include <iostream>
 #include <algorithm>
 #include <assert.h>
+#include <sstream>
 #include "clipper.hpp"
 
 using namespace std;
 using namespace ClipperLib;
 
 #ifdef use_xyz
+cInt CreateZ(const string &name) {
+    string *value = new string(name);
+    return reinterpret_cast<cInt>(value);
+}
+string &toString(const cInt value) {
+    assert(value >= 10000); // forgot to update the test if this is the case
+    return *reinterpret_cast<string *>(value);
+}
+float dist(const IntPoint &p1, const IntPoint &p2) {
+    cInt dx = p1.X - p2.X;
+    cInt dy = p1.Y - p2.Y;
+    return sqrt(float(dx*dx + dy*dy));
+}
+
 class FollowingZFill : public ZFill {
 public:
     // Pre-join tasks
@@ -102,37 +117,46 @@ private:
 
 class TestFollower : public FollowingZFill {
 protected:
-    virtual cInt ReverseZ(cInt z) override {return -z;}
-    virtual cInt StripBegin(cInt z, const IntPoint& from, const IntPoint& to, const IntPoint& pt) override {return z-10;}
-    virtual cInt StripEnd  (cInt z, const IntPoint& from, const IntPoint& to, const IntPoint& pt) override {return z+10;}
+    virtual cInt ReverseZ(cInt z) override {return CreateZ("r("+toString(z)+")");}
+    virtual cInt Clone(cInt z) override {return CreateZ(toString(z));}
+    virtual cInt StripBegin(cInt z, const IntPoint& from, const IntPoint& to, const IntPoint& pt) override {
+        stringstream ss;
+        ss << "b(" << toString(z) << ", " << pt.X - from.X << "," << pt.Y - from.Y << ")";
+        return CreateZ(ss.str());
+    }
+    virtual cInt StripEnd  (cInt z, const IntPoint& from, const IntPoint& to, const IntPoint& pt) override {
+        stringstream ss;
+        ss << "e(" << toString(z) << ", " << pt.X - to.X << "," << pt.Y - to.Y << ")";
+        return CreateZ(ss.str());
+    }
 };
 
 void figure8Test(Paths &test) {
     Path figure8;
-    figure8.push_back(IntPoint(2010,1010,150));
-    figure8.push_back(IntPoint(4020,3020,250));
-    figure8.push_back(IntPoint(5030,2030,350));
-    figure8.push_back(IntPoint(4040,1040,450));
-    figure8.push_back(IntPoint(2050,3050,550));
-    figure8.push_back(IntPoint(1060,2060,650));
+    figure8.push_back(IntPoint(2000,1000,CreateZ("1")));
+    figure8.push_back(IntPoint(4000,3000,CreateZ("2")));
+    figure8.push_back(IntPoint(5000,2000,CreateZ("3")));
+    figure8.push_back(IntPoint(4000,1000,CreateZ("4")));
+    figure8.push_back(IntPoint(2000,3000,CreateZ("5")));
+    figure8.push_back(IntPoint(1000,2000,CreateZ("6")));
     test << figure8;
 }
 
 void intersectionTest(Paths &test) {
     Path intersectionTestLargePart;
-    intersectionTestLargePart << IntPoint( 300,  300,  150)
-                              << IntPoint( 600,  600,  250)
-                              << IntPoint( 700,  500,  350)
-                              << IntPoint( 500,  300,  450)
-                              << IntPoint( 600,  200,  550)
-                              << IntPoint( 700,  300,  650)
-                              << IntPoint( 300,  700,  750)
-                              << IntPoint( 100,  500,  850);
+    intersectionTestLargePart << IntPoint( 300,  300, CreateZ("L1"))
+                              << IntPoint( 600,  600, CreateZ("L2"))
+                              << IntPoint( 700,  500, CreateZ("L3"))
+                              << IntPoint( 500,  300, CreateZ("L4"))
+                              << IntPoint( 600,  200, CreateZ("L5"))
+                              << IntPoint( 700,  300, CreateZ("L6"))
+                              << IntPoint( 300,  700, CreateZ("L7"))
+                              << IntPoint( 100,  500, CreateZ("L8"));
     Path intersectionTestSmallPart;
-    intersectionTestSmallPart << IntPoint( 300,  100, 1050)
-                              << IntPoint( 500,  300, 1150)
-                              << IntPoint( 300,  500, 1250)
-                              << IntPoint( 100,  300, 1350);
+    intersectionTestSmallPart << IntPoint( 300,  100, CreateZ("S1"))
+                              << IntPoint( 500,  300, CreateZ("S2"))
+                              << IntPoint( 300,  500, CreateZ("S3"))
+                              << IntPoint( 100,  300, CreateZ("S4"));
     ReversePath(intersectionTestSmallPart);
     test << intersectionTestLargePart << intersectionTestSmallPart;
 }
@@ -291,7 +315,7 @@ int main() {
     clpr.PreserveCollinear(true);
     clpr.Callback(&zFill);
     Paths test;
-    nightmareJoinTest(test);
+    intersectionTest(test);
     clpr.AddPaths(test, ptSubject, true);
     Paths solution;
     clpr.Execute(ctUnion, solution, pftNonZero);
@@ -299,7 +323,7 @@ int main() {
     for (Path p : solution) {
         cout << "Path (" << p.size() << ")" << endl;
         for (IntPoint pt : p) {
-            cout << "    (" << pt.X << ", " << pt.Y << ", " << pt.Z << ")" << endl;
+            cout << "    (" << pt.X << ", " << pt.Y << ", " << toString(pt.Z) << ")" << endl;
         }
     }
     #endif
