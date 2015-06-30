@@ -3812,6 +3812,8 @@ void Clipper::SetIntersectionZ(TEdge *e1, TEdge *e2, const IntPoint &pt, cInt &e
   IntPoint2Z &e2From = e2->LMLIsForward ? e2Bot : e2->Top;
   IntPoint2Z &e2To   = e2->LMLIsForward ? e2->Top : e2Bot;
   m_ZFill->OnIntersection(e1From, e1To, e2From, e2To, pt, e1f, e1r, e2f, e2r);
+  if (!e1->LMLIsForward) std::swap(e1f, e1r);
+  if (!e2->LMLIsForward) std::swap(e2f, e2r);
   // Be sure to set the emitted points back to their original state
   if (e1Backwards) e1Bot.reverse();
   if (e2Backwards) e2Bot.reverse();
