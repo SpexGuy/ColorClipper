@@ -30,7 +30,8 @@ float dist(const IntPoint &p1, const IntPoint &p2) {
 class FollowingZFill : public ZFill {
 public:
     virtual void InitializeReverse(IntPoint2Z &curr, IntPoint2Z &next) override {
-        curr.reverseZ = ReverseZ(Clone(next.correctZ));
+        curr.reverseZ = Clone(next.correctZ);
+        ReverseZ(curr.reverseZ);
     }
     // Pre-join tasks
     virtual void OnIntersection(IntPoint2Z& e1bot, IntPoint2Z& e1top, bool e1Forward,
@@ -74,7 +75,7 @@ public:
     }
 
 protected:
-    virtual cInt ReverseZ(cInt z) {return z;}
+    virtual void ReverseZ(cInt z) { }
     virtual cInt Clone(cInt z) {return z;}
     virtual cInt StripBegin(cInt z, const IntPoint& from, const IntPoint& to, const IntPoint& pt) {return z;}
 
@@ -109,12 +110,14 @@ private:
 
 class TestFollower : public FollowingZFill {
 protected:
-    virtual cInt ReverseZ(cInt z) override {return CreateZ("r("+toString(z)+")");}
+    virtual void ReverseZ(cInt z) override {toString(z) = "r("+toString(z)+")";}
     virtual cInt Clone(cInt z) override {return CreateZ(toString(z));}
     virtual cInt StripBegin(cInt z, const IntPoint& from, const IntPoint& to, const IntPoint& pt) override {
-        stringstream ss;
-        ss << "b(" << toString(z) << ", " << pt.X - from.X << "," << pt.Y - from.Y << ")";
-        return CreateZ(ss.str());
+        stringstream begin, end;
+        begin << "b(" << toString(z) << ", " << pt.X - from.X << "," << pt.Y - from.Y << ")";
+        end   << "e(" << toString(z) << ", " << pt.X - to.X   << "," << pt.Y - to.Y   << ")";
+        toString(z) = end.str();
+        return CreateZ(begin.str());
     }
 };
 
