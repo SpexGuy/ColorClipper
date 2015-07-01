@@ -34,7 +34,7 @@
 #ifndef clipper_hpp
 #define clipper_hpp
 
-#define CLIPPER_VERSION "6.2.0"
+#define CLIPPER_VERSION "7.0.0"
 
 //use_int32: When enabled 32bit ints are used instead of 64bit ints. This
 //improve performance but coordinate values are limited to the range +/- 46340
