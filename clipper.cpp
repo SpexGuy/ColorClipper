@@ -4830,6 +4830,69 @@ void ZFill::OnOffset(int step, int steps, IntPoint& z, IntPoint& pt) {
   UNUSED(step); UNUSED(steps); UNUSED(z); UNUSED(pt);
 }
 
+//------------------------------------------------------------------------------
+// ZFill for edge information stored in the node following the edge
+//------------------------------------------------------------------------------
+void FollowingZFill::InitializeReverse(IntPoint2Z &curr, IntPoint2Z &next) {
+  curr.reverseZ = Clone(next.correctZ);
+  ReverseZ(curr.reverseZ);
+}
+void FollowingZFill::OnIntersection(const IntPoint2Z &e1From, const IntPoint2Z &e1To,
+                            const IntPoint2Z &e2From, const IntPoint2Z &e2To,
+                            const IntPoint &pt, cInt& z1f, cInt& z1r, cInt& z2f, cInt& z2r) {
+  SplitEdge(e1From, pt, e1To, z1f, z1r);
+  SplitEdge(e2From, pt, e2To, z2f, z2r);
+}
+void FollowingZFill::OnAppendOverlapping(IntPoint2Z &from, IntPoint2Z &to) {
+  to.correctZ = from.correctZ;
+  from.reverseZ = to.reverseZ;
+}
+void FollowingZFill::OnJoin(IntPoint2Z &e1from, IntPoint2Z &e1to, IntPoint2Z &e2from, IntPoint2Z &e2to) {
+  e1to.correctZ = e2from.correctZ;
+  e1to.reverseZ = e2from.reverseZ;
+  e2to.correctZ = e1from.correctZ;
+  e2to.reverseZ = e1from.reverseZ;
+}
+void FollowingZFill::OnSplitEdge(const IntPoint2Z &prev, IntPoint2Z &pt, const IntPoint2Z &next) {
+  SplitEdge(prev, pt, next, pt.correctZ, pt.reverseZ);
+}
+void FollowingZFill::OnRemoveSpike(IntPoint2Z &prev, IntPoint2Z &curr, IntPoint2Z &next) {
+  RemoveSpike(prev, curr, next, prev.correctZ, curr.correctZ, next.correctZ);
+}
+void FollowingZFill::OnOffset(int step, int steps, IntPoint& source, IntPoint& dest) {
+  dest.Z = Clone(source.Z);
+}
+void FollowingZFill::RemoveSpike(const IntPoint2Z &from, const IntPoint2Z &spike, const IntPoint2Z &to, cInt &fromZ, const cInt &spikeZ, cInt &toZ) {
+  if (from == to) {
+    toZ = fromZ;
+  } else if (abs(from.X - spike.X) > abs(from.Y - spike.Y)) { // is x more precise than y?
+    if (abs(from.X - spike.X) > abs(to.X - spike.X)) { // is from further than to?
+      toZ = StripBegin(spikeZ, from, spike, to);
+    } else {
+      StripBegin(toZ, spike, to, from);
+    }
+  } else {
+    if (abs(from.Y - spike.Y) > abs(to.Y - spike.Y)) { // is from further than to?
+      toZ = StripBegin(spikeZ, from, spike, to);
+    } else {
+      StripBegin(toZ, spike, to, from);
+    }
+  }
+}
+void FollowingZFill::SplitEdge(const IntPoint2Z &prev, const IntPoint &pt, const IntPoint2Z &next, cInt &ptCorrect, cInt &ptReverse) {
+  if (pt == prev) {
+    ptCorrect = prev.correctZ;
+    ptReverse = prev.reverseZ;
+  } else if (pt == next) {
+    ptCorrect = next.correctZ;
+    ptReverse = next.reverseZ;
+  } else {
+    ptCorrect = StripBegin(next.correctZ, prev, next, pt);
+    ptReverse = StripBegin(prev.reverseZ, next, prev, pt);
+  }
+}
+
+
 #endif // use_xyz
 
 } //ClipperLib namespace

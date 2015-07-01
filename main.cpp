@@ -27,87 +27,17 @@ float dist(const IntPoint &p1, const IntPoint &p2) {
     return sqrt(float(dx*dx + dy*dy));
 }
 
-class FollowingZFill : public ZFill {
-public:
-    virtual void InitializeReverse(IntPoint2Z &curr, IntPoint2Z &next) override {
-        curr.reverseZ = Clone(next.correctZ);
-        ReverseZ(curr.reverseZ);
-    }
-    // Pre-join tasks
-    virtual void OnIntersection(const IntPoint2Z&e1From, const IntPoint2Z&e1To,
-                                const IntPoint2Z&e2From, const IntPoint2Z&e2To,
-                                const IntPoint &pt, cInt& z1f, cInt& z1r, cInt& z2f, cInt& z2r) override {
-        z1f = StripBegin(e1To.correctZ, e1From, e1To, pt);
-        z1r = StripBegin(e1From.reverseZ, e1To, e1From, pt);
-        z2f = StripBegin(e2To.correctZ, e2From, e2To, pt);
-        z2r = StripBegin(e2From.reverseZ, e2To, e2From, pt);
-    }
-    virtual void OnAppendOverlapping(IntPoint2Z &from, IntPoint2Z &to) override {
-        to.correctZ = from.correctZ;
-        from.reverseZ = to.reverseZ;
-    }
-    // Post-join tasks
-    virtual void OnJoin(IntPoint2Z &e1from, IntPoint2Z &e1to, IntPoint2Z &e2from, IntPoint2Z &e2to) override {
-        e1to.correctZ = e2from.correctZ;
-        e1to.reverseZ = e2from.reverseZ;
-        e2to.correctZ = e1from.correctZ;
-        e2to.reverseZ = e1from.reverseZ;
-    }
-    virtual void OnSplitEdge(const IntPoint2Z &prev, IntPoint2Z &pt, const IntPoint2Z &next) override {
-        pt.correctZ = StripBegin(next.correctZ, prev, next, pt);
-        pt.reverseZ = StripBegin(prev.reverseZ, next, prev, pt);
-    }
-    virtual void OnRemoveSpike(IntPoint2Z &prev, IntPoint2Z &curr, IntPoint2Z &next) override {
-        RemoveSpike(prev, curr, next, prev.correctZ, curr.correctZ, next.correctZ);
-    }
-
-    virtual void OnOffset(int step, int steps, IntPoint& source, IntPoint& dest) override {
-        dest.Z = Clone(source.Z);
-    }
-
-protected:
-    virtual void ReverseZ(cInt z) { }
-    virtual cInt Clone(cInt z) {return z;}
-    virtual cInt StripBegin(cInt z, const IntPoint& from, const IntPoint& to, const IntPoint& pt) {return z;}
-
-private:
-    void RemoveSpike(const IntPoint2Z &from, const IntPoint2Z &spike, const IntPoint2Z &to, cInt &fromZ, const cInt &spikeZ, cInt &toZ) {
-        if (from == to) {
-            toZ = fromZ;
-        } else if (abs(from.X - spike.X) > abs(from.Y - spike.Y)) { // is x more precise than y?
-            if (abs(from.X - spike.X) > abs(to.X - spike.X)) { // is from further than to?
-                toZ = StripBegin(spikeZ, from, spike, to);
-            } else {
-                StripBegin(toZ, spike, to, from);
-            }
-        } else {
-            if (abs(from.Y - spike.Y) > abs(to.Y - spike.Y)) { // is from further than to?
-                toZ = StripBegin(spikeZ, from, spike, to);
-            } else {
-                StripBegin(toZ, spike, to, from);
-            }
-        }
-    }
-};
 
 class TestFollower : public FollowingZFill {
 protected:
     virtual void ReverseZ(cInt z) override {toString(z) = "r("+toString(z)+")";}
     virtual cInt Clone(cInt z) override {return CreateZ(toString(z));}
     virtual cInt StripBegin(cInt z, const IntPoint& from, const IntPoint& to, const IntPoint& pt) override {
-        if (pt == from) {
-            // strip nothing
-            return 0; // the return value will be thrown away by coalescence.
-        } else if (pt == to) {
-            // strip everything
-            return z; // the current value will be thrown away by coalescence
-        } else {
-            stringstream begin, end;
-            begin << "b(" << toString(z) << ", " << pt.X - from.X << "," << pt.Y - from.Y << ")";
-            end   << "e(" << toString(z) << ", " << pt.X - to.X   << "," << pt.Y - to.Y   << ")";
-            toString(z) = end.str();
-            return CreateZ(begin.str());
-        }
+        stringstream begin, end;
+        begin << "b(" << toString(z) << ", " << pt.X - from.X << "," << pt.Y - from.Y << ")";
+        end   << "e(" << toString(z) << ", " << pt.X - to.X   << "," << pt.Y - to.Y   << ")";
+        toString(z) = end.str();
+        return CreateZ(begin.str());
     }
 };
 

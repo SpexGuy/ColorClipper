@@ -184,6 +184,36 @@ public:
   virtual void OnOffset(int step, int steps, IntPoint& z, IntPoint& pt);
   virtual ~ZFill() {}
 };
+
+class FollowingZFill : public ZFill {
+public:
+  virtual void InitializeReverse(IntPoint2Z &curr, IntPoint2Z &next) override;
+  virtual void OnIntersection(const IntPoint2Z& e1bot, const IntPoint2Z& e1top,
+                              const IntPoint2Z& e2bot, const IntPoint2Z& e2top,
+                              const IntPoint& pt, cInt& z1f, cInt& z1r, cInt& z2f, cInt& z2r) override;
+  virtual void OnSplitEdge(const IntPoint2Z &prev, IntPoint2Z &pt, const IntPoint2Z &next) override;
+  virtual void OnAppendOverlapping(IntPoint2Z &prev, IntPoint2Z &to) override;
+  virtual void OnJoin(IntPoint2Z &e1from, IntPoint2Z &e1to, IntPoint2Z &e2from, IntPoint2Z &e2to) override;
+  virtual void OnRemoveSpike(IntPoint2Z &prev, IntPoint2Z &curr, IntPoint2Z &next) override;
+  virtual void OnOffset(int step, int steps, IntPoint& z, IntPoint& pt) override;
+  virtual ~FollowingZFill() {}
+protected:
+  // Override these functions for more complex edge attributes (like sub-extents)
+
+  // Reverse the edge attribute pointed to by z
+  virtual void ReverseZ(cInt z) { }
+  // Clone the edge attribute pointed to by z and return the pointer to this clone.
+  virtual cInt Clone(cInt z) {return z;}
+  // Strip the range [from, pt) out of the edge attribute pointed to by z and return
+  // a new attribute containing only this range.
+  // pt is guaranteed to be on the line between from and to (within integer truncation)
+  // and not coincident with either.
+  virtual cInt StripBegin(cInt z, const IntPoint& from, const IntPoint& to, const IntPoint& pt) {return z;}
+
+private:
+  void SplitEdge(const IntPoint2Z &prev, const IntPoint &pt, const IntPoint2Z &next, cInt &ptCorrect, cInt &ptReverse);
+  void RemoveSpike(const IntPoint2Z &from, const IntPoint2Z &spike, const IntPoint2Z &to, cInt &fromZ, const cInt &spikeZ, cInt &toZ);
+};
 #endif
 
 enum InitOptions {ioReverseSolution = 1, ioStrictlySimple = 2, ioPreserveCollinear = 4};
