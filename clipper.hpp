@@ -81,72 +81,26 @@ enum PolyFillType { pftEvenOdd, pftNonZero, pftPositive, pftNegative };
 
 #endif
 
-#ifdef use_xyz
-struct IntPoint2Z;
-#endif
-
 struct IntPoint {
   cInt X;
   cInt Y;
 #ifdef use_xyz
   cInt Z;
   IntPoint(cInt x = 0, cInt y = 0, cInt z = 0): X(x), Y(y), Z(z) {};
-  IntPoint(const IntPoint2Z& pt);
 #else
   IntPoint(cInt x = 0, cInt y = 0): X(x), Y(y) {};
 #endif
+
+  friend inline bool operator== (const IntPoint& a, const IntPoint& b)
+  {
+    return a.X == b.X && a.Y == b.Y;
+  }
+  friend inline bool operator!= (const IntPoint& a, const IntPoint& b)
+  {
+    return a.X != b.X || a.Y != b.Y;
+  }
 };
 
-#ifdef use_xyz
-struct IntPoint2Z {
-  cInt X;
-  cInt Y;
-  cInt correctZ;
-  cInt reverseZ;
-  IntPoint2Z(cInt x = 0, cInt y = 0, cInt cz = 0, cInt rz = 0) : X(x), Y(y), correctZ(cz), reverseZ(rz) {};
-  IntPoint2Z(const IntPoint& pt) : X(pt.X), Y(pt.Y), correctZ(pt.Z), reverseZ(0) {};
-  inline void reverse() { std::swap(correctZ, reverseZ); }
-  inline cInt getZ() const { return correctZ; }
-};
-typedef IntPoint2Z OutCoord;
-#else
-typedef IntPoint OutCoord;
-#endif
-
-inline bool operator== (const IntPoint& a, const IntPoint& b)
-{
-  return a.X == b.X && a.Y == b.Y;
-}
-inline bool operator!= (const IntPoint& a, const IntPoint& b)
-{
-  return a.X != b.X  || a.Y != b.Y;
-}
-#ifdef use_xyz
-inline bool operator== (const IntPoint& a, const IntPoint2Z& b)
-{
-  return a.X == b.X && a.Y == b.Y;
-}
-inline bool operator!= (const IntPoint& a, const IntPoint2Z& b)
-{
-  return a.X != b.X  || a.Y != b.Y;
-}
-inline bool operator== (const IntPoint2Z& a, const IntPoint& b)
-{
-  return a.X == b.X && a.Y == b.Y;
-}
-inline bool operator!= (const IntPoint2Z& a, const IntPoint& b)
-{
-  return a.X != b.X  || a.Y != b.Y;
-}
-inline bool operator== (const IntPoint2Z& a, const IntPoint2Z& b)
-{
-  return a.X == b.X && a.Y == b.Y;
-}
-inline bool operator!= (const IntPoint2Z& a, const IntPoint2Z& b)
-{
-  return a.X != b.X  || a.Y != b.Y;
-}
-#endif
 
 //------------------------------------------------------------------------------
 
@@ -172,29 +126,31 @@ struct DoublePoint
 #ifdef use_xyz
 class ZFill {
 public:
-  virtual void InitializeReverse(IntPoint2Z &curr, IntPoint2Z &next);
-  virtual void OnIntersection(const IntPoint2Z& e1bot, const IntPoint2Z& e1top,
-                              const IntPoint2Z& e2bot, const IntPoint2Z& e2top,
-                              const IntPoint& pt, cInt& z1f, cInt& z1r, cInt& z2f, cInt& z2r);
+  virtual void InitializeReverse(IntPoint &prev, IntPoint &next);
+  virtual void OnIntersection(const IntPoint& e1prev, IntPoint& e1pt, const IntPoint& e1next,
+                              const IntPoint& e2prev, IntPoint& e2pt, const IntPoint& e2next);
   // Points here are passed in the same order they were in the original polygon
-  virtual void OnSplitEdge(const IntPoint2Z &prev, IntPoint2Z &pt, const IntPoint2Z &next);
-  virtual void OnAppendOverlapping(IntPoint2Z &prev, IntPoint2Z &to);
-  virtual void OnJoin(IntPoint2Z &e1from, IntPoint2Z &e1to, IntPoint2Z &e2from, IntPoint2Z &e2to);
-  virtual void OnRemoveSpike(IntPoint2Z &prev, IntPoint2Z &curr, IntPoint2Z &next);
+  virtual void OnReverseGuess(IntPoint &pt);
+  virtual void OnSwapReverse(IntPoint &p1, IntPoint &p2);
+  virtual void OnSplitEdge(const IntPoint &prev, IntPoint &pt, const IntPoint &next);
+  virtual void OnAppendOverlapping(IntPoint &prev, IntPoint &next);
+  virtual void OnJoin(IntPoint &e1prev, IntPoint &e1next, IntPoint &e2prev, IntPoint &e2next);
+  virtual void OnRemoveSpike(IntPoint &prev, IntPoint &curr, IntPoint &next);
   virtual void OnOffset(int step, int steps, IntPoint& z, IntPoint& pt);
   virtual ~ZFill() {}
 };
 
 class FollowingZFill : public ZFill {
 public:
-  virtual void InitializeReverse(IntPoint2Z &curr, IntPoint2Z &next) override;
-  virtual void OnIntersection(const IntPoint2Z& e1bot, const IntPoint2Z& e1top,
-                              const IntPoint2Z& e2bot, const IntPoint2Z& e2top,
-                              const IntPoint& pt, cInt& z1f, cInt& z1r, cInt& z2f, cInt& z2r) override;
-  virtual void OnSplitEdge(const IntPoint2Z &prev, IntPoint2Z &pt, const IntPoint2Z &next) override;
-  virtual void OnAppendOverlapping(IntPoint2Z &prev, IntPoint2Z &to) override;
-  virtual void OnJoin(IntPoint2Z &e1from, IntPoint2Z &e1to, IntPoint2Z &e2from, IntPoint2Z &e2to) override;
-  virtual void OnRemoveSpike(IntPoint2Z &prev, IntPoint2Z &curr, IntPoint2Z &next) override;
+  virtual void InitializeReverse(IntPoint &curr, IntPoint &next) override;
+  virtual void OnIntersection(const IntPoint& e1prev, IntPoint& e1pt, const IntPoint& e1next,
+                              const IntPoint& e2prev, IntPoint& e2pt, const IntPoint& e2next) override;
+  virtual void OnReverseGuess(IntPoint &pt) override;
+  virtual void OnSwapReverse(IntPoint &p1, IntPoint &p2) override;
+  virtual void OnSplitEdge(const IntPoint &prev, IntPoint &pt, const IntPoint &next) override;
+  virtual void OnAppendOverlapping(IntPoint &prev, IntPoint &next) override;
+  virtual void OnJoin(IntPoint &e1prev, IntPoint &e1next, IntPoint &e2prev, IntPoint &e2next) override;
+  virtual void OnRemoveSpike(IntPoint &prev, IntPoint &curr, IntPoint &next) override;
   virtual void OnOffset(int step, int steps, IntPoint& z, IntPoint& pt) override;
   virtual ~FollowingZFill() {}
 protected:
@@ -211,8 +167,8 @@ protected:
   virtual cInt StripBegin(cInt z, const IntPoint& from, const IntPoint& to, const IntPoint& pt) {return z;}
 
 private:
-  void SplitEdge(const IntPoint2Z &prev, const IntPoint &pt, const IntPoint2Z &next, cInt &ptCorrect, cInt &ptReverse);
-  void RemoveSpike(const IntPoint2Z &from, const IntPoint2Z &spike, const IntPoint2Z &to, cInt &fromZ, const cInt &spikeZ, cInt &toZ);
+  void SplitEdge(const IntPoint &prev, const IntPoint &pt, const IntPoint &next, cInt &ptCorrect, cInt &ptReverse);
+  void RemoveSpike(const IntPoint &from, const IntPoint &spike, const IntPoint &to, cInt &fromZ, const cInt &spikeZ, cInt &toZ);
 };
 #endif
 
@@ -325,6 +281,7 @@ protected:
   TEdge* AddBoundsToLML(TEdge *e, bool IsClosed);
   void PopLocalMinima();
   virtual void Reset();
+  void ReversePolyPtLinks(OutPt *pp);
   void InitEdge2(TEdge& e, PolyType Pt);
   TEdge* ProcessBound(TEdge* E, bool IsClockwise);
   void DoMinimaLML(TEdge* E1, TEdge* E2, bool IsClosed);
@@ -401,15 +358,15 @@ private:
   void DoMaxima(TEdge *e);
   void ProcessHorizontals(bool IsTopOfScanbeam);
   void ProcessHorizontal(TEdge *horzEdge, bool isTopOfScanbeam);
-  void AddLocalMaxPoly(TEdge *e1, TEdge *e2, OutCoord &pt);
-  OutPt* AddLocalMinPoly(TEdge *e1, TEdge *e2, OutCoord &pt);
+  void AddLocalMaxPoly(TEdge *e1, TEdge *e2, const IntPoint &pt);
+  OutPt* AddLocalMinPoly(TEdge *e1, TEdge *e2, const IntPoint &pt);
   OutPt* AddIntersectionMinPoly(TEdge *e1, TEdge *e2, const IntPoint &pt);
   OutRec* GetOutRec(int idx);
   void LinkPolygon(OutPt *tail1, OutPt *head1, OutPt *tail2, OutPt *head2);
   void AppendPolygon(TEdge *e1, TEdge *e2);
   void IntersectEdges(TEdge *e1, TEdge *e2, const IntPoint &pt);
   OutRec* CreateOutRec();
-  OutPt* AddOutPt(TEdge *e, OutCoord &pt);
+  OutPt* AddOutPt(TEdge *e, const IntPoint &pt);
   void DisposeAllOutRecs();
   void DisposeOutRec(PolyOutList::size_type index);
   bool ProcessIntersections(const cInt topY);
@@ -430,22 +387,22 @@ private:
   void ClearJoins();
   void ClearGhostJoins();
   void AddGhostJoin(OutPt *op, const IntPoint offPt);
-  bool JoinHorz(OutPt* op1, OutPt* op1b, OutPt* op2, OutPt* op2b, OutCoord Pt, bool DiscardLeft);
+  bool JoinHorz(OutPt* op1, OutPt* op1b, OutPt* op2, OutPt* op2b, const IntPoint &Pt, bool DiscardLeft);
   bool JoinPoints(Join *j, OutRec* outRec1, OutRec* outRec2);
   void JoinCommonEdges();
   void DoSimplePolygons();
   void FixupFirstLefts1(OutRec* OldOutRec, OutRec* NewOutRec);
   void FixupFirstLefts2(OutRec* OldOutRec, OutRec* NewOutRec);
 #ifdef use_xyz
-  IntPoint2Z LastEmitted(TEdge *e);
-  void SetIntermediateZ(TEdge *e, IntPoint2Z& pt);
-  void SetLocalMaxZ(TEdge* e1, TEdge* e2, IntPoint2Z& pt);
-  void SetLocalMinZ(TEdge* e1, TEdge* e2, IntPoint2Z& pt);
-  void SetIntersectionZ(TEdge *e1, TEdge *e2, const IntPoint &pt, cInt &e1f, cInt &e1r, cInt &e2f, cInt &e2r);
-  void SetIntersectionIntermediateZ(TEdge *e1, TEdge *e2, const IntPoint &pt, IntPoint2Z &p1, IntPoint2Z &p2);
-  void SetIntersectionMinMaxZ(TEdge *e1, TEdge *e2, const IntPoint &pt, IntPoint2Z &min, IntPoint2Z &max);
+  IntPoint LastEmitted(TEdge *e);
+  void SetIntermediateZ(TEdge *e, IntPoint& pt);
+  void SetLocalMaxZ(TEdge* e1, TEdge* e2, IntPoint& pt);
+  void SetLocalMinZ(TEdge* e1, TEdge* e2, IntPoint& pt);
+  void SetIntersectionZ(TEdge *e1, TEdge *e2, IntPoint &p1, IntPoint &p2);
+  void SetIntersectionIntermediateZ(TEdge *e1, TEdge *e2, IntPoint &p1, IntPoint &p2);
+  void SetIntersectionMinMaxZ(TEdge *e1, TEdge *e2, IntPoint &min, IntPoint &max);
   void SetEdgeSplitZ(OutPt *splitPt);
-  void SetEdgeSplitZ(TEdge *edge, IntPoint2Z &pt);
+  void SetEdgeSplitZ(TEdge *edge, IntPoint &pt);
 #endif
 };
 //------------------------------------------------------------------------------

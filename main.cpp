@@ -216,19 +216,26 @@ void nightmareJoinTest(Paths &test) {
           << IntPoint(300, 100, CreateZ("Br4"));
     test << center << tl << tr << bl << br;
 }
+
+void offsetTest(Paths &test) {
+    Path trig;
+    trig << IntPoint(200, 200, CreateZ("BL"))
+         << IntPoint(600, 200, CreateZ("BR"))
+         << IntPoint(400, 400, CreateZ("TC"));
+    test << trig;
+}
 #endif
 
 int main() {
     #ifdef use_xyz
     TestFollower zFill;
-    Clipper clpr;
-    clpr.PreserveCollinear(true);
+    ClipperOffset clpr;
     clpr.Callback(&zFill);
     Paths test;
-    intersectionTest(test);
-    clpr.AddPaths(test, ptSubject, true);
+    offsetTest(test);
+    clpr.AddPaths(test, jtMiter, etClosedPolygon);
     Paths solution;
-    clpr.Execute(ctUnion, solution, pftNonZero);
+    clpr.Execute(solution, 100);
     cout << "Clipper returned " << solution.size() << " paths." << endl;
     for (Path p : solution) {
         cout << "Path (" << p.size() << ")" << endl;
