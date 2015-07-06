@@ -3876,7 +3876,7 @@ void Clipper::SetIntersectionMinMaxZ(TEdge *e1, TEdge *e2, IntPoint &min, IntPoi
   m_ZFill->OnSwapReverse(min, max);
   // orient them for OutPt insertion
   if (e1->Side == esRight) m_ZFill->OnReverseGuess(max);
-  if (e2->Side == esLeft) m_ZFill->OnReverseGuess(min);
+  if (e2->Side == esRight) m_ZFill->OnReverseGuess(min);
 }
 void Clipper::SetIntermediateZ(TEdge *e, IntPoint& pt) {
   if (e->LMLIsForward) {
