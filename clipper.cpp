@@ -67,7 +67,6 @@ static ZFill defaultFill;
 #define HORIZONTAL (-1.0E+40)
 #define TOLERANCE (1.0e-20)
 #define NEAR_ZERO(val) (((val) > -TOLERANCE) && ((val) < TOLERANCE))
-#define UNUSED(expr) (void)(expr)
 
 struct TEdge {
   IntPoint Bot;
@@ -1090,10 +1089,17 @@ bool ClipperBase::AddPath(const Path &pg, PolyType PolyTyp, bool Closed)
     RangeTest(pg[highI], m_UseFullRange);
     InitEdge(&edges[0], &edges[1], &edges[highI], pg[0]);
     InitEdge(&edges[highI], &edges[0], &edges[highI-1], pg[highI]);
+#ifdef use_xyz
+    m_ZFill->OnPreparePoint(pg[highI-1], edges[highI].Curr, pg[0]);
+    m_ZFill->OnPreparePoint(pg[highI], edges[0].Curr, pg[1]);
+#endif
     for (int i = highI - 1; i >= 1; --i)
     {
       RangeTest(pg[i], m_UseFullRange);
       InitEdge(&edges[i], &edges[i+1], &edges[i-1], pg[i]);
+#ifdef use_xyz
+      m_ZFill->OnPreparePoint(pg[i-1], edges[i].Curr, pg[i+1]);
+#endif
     }
   }
   catch(...)
@@ -1160,17 +1166,6 @@ bool ClipperBase::AddPath(const Path &pg, PolyType PolyTyp, bool Closed)
     m_HasOpenPaths = true;
     eStart->Prev->OutIdx = Skip;
   }
-
-#ifdef use_xyz
-  //2.5. Setup reverse z values
-  // This must be done separately from 3 because otherwise
-  // it may modify eStart->Curr after InitEdge2(eStart).
-  E = eStart;
-  do {
-    m_ZFill->InitializeReverse(E->Curr, E->Next->Curr);
-    E = E->Next;
-  } while(E != eStart);
-#endif
 
   bool IsFlat = true;
   //3. Do second stage of edge initialization ...
@@ -1376,6 +1371,8 @@ IntRect ClipperBase::GetBounds()
 #ifdef use_xyz
 void ClipperBase::Callback(ZFill *zFill)
 {
+  if (!m_edges.empty())
+    throw clipperException("Callback must be specified before any AddPath[s]");
   m_ZFill = zFill;
 }
 //------------------------------------------------------------------------------
@@ -1516,6 +1513,21 @@ bool Clipper::ExecuteInternal()
     }
 
     if (m_StrictSimple) DoSimplePolygons();
+
+#ifdef use_xyz
+    // finalize all the points
+    for (OutRec *outRec : m_PolyOuts) {
+      if (outRec->Pts) {
+        OutPt *pp = outRec->Pts;
+        OutPt *pStart = pp;
+        do {
+          m_ZFill->OnFinalizePoint(pp->Next->Pt, pp->Pt, pp->Prev->Pt);
+          pp = pp->Next;
+        } while (pp != pStart);
+      }
+    }
+    m_ZFill->OnFinishClipping();
+#endif
   }
 
   ClearJoins();
@@ -4845,84 +4857,20 @@ std::ostream& operator <<(std::ostream &s, const Paths &p)
 //------------------------------------------------------------------------------
 // ZFill Strategies
 //------------------------------------------------------------------------------
-void ZFill::InitializeReverse(IntPoint &curr, IntPoint &next) { }
-
+void ZFill::OnPreparePoint(const IntPoint &prev, IntPoint &curr, const IntPoint &next) { }
 void ZFill::OnReverseGuess(IntPoint &pt) { }
 void ZFill::OnSwapReverse(IntPoint &p1, IntPoint &p2) { }
-
 void ZFill::OnIntersection(const IntPoint &e1bot, IntPoint &e1pt, const IntPoint &e1top,
                            const IntPoint &e2bot, IntPoint &e2pt, const IntPoint &e2top) { }
 void ZFill::OnSplitEdge(const IntPoint &prev, IntPoint &pt, const IntPoint &next) { }
-
 void ZFill::OnAppendOverlapping(IntPoint &prev, IntPoint &to) { }
 void ZFill::OnJoin(IntPoint &e1from, IntPoint &e1to, IntPoint &e2from, IntPoint &e2to) { }
 void ZFill::OnRemoveSpike(IntPoint &prev, IntPoint &curr, IntPoint &next) { }
+void ZFill::OnFinalizePoint(const IntPoint &prev, IntPoint &curr, const IntPoint &next) { }
 void ZFill::OnOffset(int step, int steps, IntPoint& z, IntPoint& pt) {
   //just return - points default to 0 z.
-  UNUSED(step); UNUSED(steps); UNUSED(z); UNUSED(pt);
+  CLIPPER_UNUSED(step); CLIPPER_UNUSED(steps); CLIPPER_UNUSED(z); CLIPPER_UNUSED(pt);
 }
-
-//------------------------------------------------------------------------------
-// ZFill for edge information stored in the node following the edge
-//------------------------------------------------------------------------------
-//TODO: unbork FollowingZFill
-void FollowingZFill::InitializeReverse(IntPoint &curr, IntPoint &next) {
-//  curr.reverseZ = Clone(next.correctZ);
-//  ReverseZ(curr.reverseZ);
-}
-void FollowingZFill::OnReverseGuess(IntPoint &pt) { }
-void FollowingZFill::OnSwapReverse(IntPoint &p1, IntPoint &p2) { }
-void FollowingZFill::OnIntersection(const IntPoint &e1From, IntPoint &e1pt, const IntPoint &e1To,
-                                    const IntPoint &e2From, IntPoint &e2pt, const IntPoint &e2To) {
-  OnSplitEdge(e1From, e1pt, e1To);
-  OnSplitEdge(e2From, e2pt, e2To);
-}
-void FollowingZFill::OnAppendOverlapping(IntPoint &from, IntPoint &to) {
-//  to.correctZ = from.correctZ;
-//  from.reverseZ = to.reverseZ;
-}
-void FollowingZFill::OnJoin(IntPoint &e1from, IntPoint &e1to, IntPoint &e2from, IntPoint &e2to) {
-//  e1to.correctZ = e2from.correctZ;
-//  e1to.reverseZ = e2from.reverseZ;
-//  e2to.correctZ = e1from.correctZ;
-//  e2to.reverseZ = e1from.reverseZ;
-}
-void FollowingZFill::OnSplitEdge(const IntPoint &prev, IntPoint &pt, const IntPoint &next) {
-//  if (pt == prev) {
-//    ptCorrect = prev.correctZ;
-//    ptReverse = prev.reverseZ;
-//  } else if (pt == next) {
-//    ptCorrect = next.correctZ;
-//    ptReverse = next.reverseZ;
-//  } else {
-//    ptCorrect = StripBegin(next.correctZ, prev, next, pt);
-//    ptReverse = StripBegin(prev.reverseZ, next, prev, pt);
-//  }
-}
-void FollowingZFill::OnRemoveSpike(IntPoint &prev, IntPoint &curr, IntPoint &next) {
-//  RemoveSpike(prev, curr, next, prev.correctZ, curr.correctZ, next.correctZ);
-}
-void FollowingZFill::OnOffset(int step, int steps, IntPoint& source, IntPoint& dest) {
-  dest.Z = Clone(source.Z);
-}
-void FollowingZFill::RemoveSpike(const IntPoint &from, const IntPoint &spike, const IntPoint &to, cInt &fromZ, const cInt &spikeZ, cInt &toZ) {
-//  if (from == to) {
-//    toZ = fromZ;
-//  } else if (abs(from.X - spike.X) > abs(from.Y - spike.Y)) { // is x more precise than y?
-//    if (abs(from.X - spike.X) > abs(to.X - spike.X)) { // is from further than to?
-//      toZ = StripBegin(spikeZ, from, spike, to);
-//    } else {
-//      StripBegin(toZ, spike, to, from);
-//    }
-//  } else {
-//    if (abs(from.Y - spike.Y) > abs(to.Y - spike.Y)) { // is from further than to?
-//      toZ = StripBegin(spikeZ, from, spike, to);
-//    } else {
-//      StripBegin(toZ, spike, to, from);
-//    }
-//  }
-}
-
 #endif // use_xyz
 
 } //ClipperLib namespace

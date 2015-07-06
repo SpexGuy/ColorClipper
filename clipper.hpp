@@ -124,9 +124,11 @@ struct DoublePoint
 //------------------------------------------------------------------------------
 
 #ifdef use_xyz
+#define CLIPPER_UNUSED(expr) (void)(expr)
 class ZFill {
 public:
-  virtual void InitializeReverse(IntPoint &prev, IntPoint &next);
+  virtual void OnPreparePoint(const IntPoint &prev, IntPoint &curr, const IntPoint &next);
+  virtual void OnFinalizePoint(const IntPoint &prev, IntPoint &curr, const IntPoint &next);
   virtual void OnIntersection(const IntPoint& e1prev, IntPoint& e1pt, const IntPoint& e1next,
                               const IntPoint& e2prev, IntPoint& e2pt, const IntPoint& e2next);
   // Points here are passed in the same order they were in the original polygon
@@ -136,39 +138,147 @@ public:
   virtual void OnAppendOverlapping(IntPoint &prev, IntPoint &next);
   virtual void OnJoin(IntPoint &e1prev, IntPoint &e1next, IntPoint &e2prev, IntPoint &e2next);
   virtual void OnRemoveSpike(IntPoint &prev, IntPoint &curr, IntPoint &next);
+  virtual void OnFinishClipping() {}
   virtual void OnOffset(int step, int steps, IntPoint& z, IntPoint& pt);
   virtual ~ZFill() {}
 };
 
-class FollowingZFill : public ZFill {
+template<typename T> struct DoubleZ {
+  DoubleZ(const T &correct, const T &reverse)
+    : correct(correct), reverse(reverse) {}
+  T correct;
+  T reverse;
+  void swap() { std::swap(correct, reverse); }
+};
+
+//------------------------------------------------------------------------------
+// ZFill for edge information stored in the node following the edge
+// Instances of this class are not threadsafe, and should be used with only one clipper object.
+// Performing multiple clipping operations is not yet supported.
+//------------------------------------------------------------------------------
+template<typename T> class FollowingZFill : public ZFill {
 public:
-  virtual void InitializeReverse(IntPoint &curr, IntPoint &next) override;
+  static_assert(sizeof(T) <= sizeof(cInt), "FollowingZFill type parameter is too large to fit in a cInt. Try using a pointer.");
+  typedef DoubleZ<T> ZPair;
+
+  FollowingZFill() {}
+  virtual void OnPreparePoint(const IntPoint &prev, IntPoint &curr, const IntPoint &next) override {
+    CLIPPER_UNUSED(prev);
+    curr.Z = InitPoint(curr.Z, next.Z);
+  };
+  virtual void OnFinalizePoint(const IntPoint &prev, IntPoint &curr, const IntPoint &next) override {
+    CLIPPER_UNUSED(prev); CLIPPER_UNUSED(next);
+    curr.Z = reinterpret_cast<cInt>(GetPair(curr).correct);
+  }
+  virtual void OnReverseGuess(IntPoint &pt) override {
+    GetPair(pt.Z).swap();
+  }
+  virtual void OnSwapReverse(IntPoint &p1, IntPoint &p2) override {
+    std::swap(GetPair(p1.Z).reverse, GetPair(p2.Z).reverse);
+  }
   virtual void OnIntersection(const IntPoint& e1prev, IntPoint& e1pt, const IntPoint& e1next,
-                              const IntPoint& e2prev, IntPoint& e2pt, const IntPoint& e2next) override;
-  virtual void OnReverseGuess(IntPoint &pt) override;
-  virtual void OnSwapReverse(IntPoint &p1, IntPoint &p2) override;
-  virtual void OnSplitEdge(const IntPoint &prev, IntPoint &pt, const IntPoint &next) override;
-  virtual void OnAppendOverlapping(IntPoint &prev, IntPoint &next) override;
-  virtual void OnJoin(IntPoint &e1prev, IntPoint &e1next, IntPoint &e2prev, IntPoint &e2next) override;
-  virtual void OnRemoveSpike(IntPoint &prev, IntPoint &curr, IntPoint &next) override;
-  virtual void OnOffset(int step, int steps, IntPoint& z, IntPoint& pt) override;
+                              const IntPoint& e2prev, IntPoint& e2pt, const IntPoint& e2next) override {
+    OnSplitEdge(e1prev, e1pt, e1next);
+    OnSplitEdge(e2prev, e2pt, e2next);
+  }
+  virtual void OnSplitEdge(const IntPoint &prev, IntPoint &pt, const IntPoint &next) override {
+    if (pt == prev) {
+      ZPair &from = GetPair(prev);
+      pt.Z = CreatePair(from.correct, from.reverse);
+    } else if (pt == next) {
+      ZPair &to = GetPair(next);
+      pt.Z = CreatePair(to.correct, to.reverse);
+    } else {
+      ZPair &from = GetPair(prev);
+      ZPair &to = GetPair(next);
+      pt.Z = CreatePair(StripBegin(  to.correct, prev, next, pt),
+                        StripBegin(from.reverse, next, prev, pt));
+    }
+  }
+  virtual void OnAppendOverlapping(IntPoint &prev, IntPoint &next) override {
+    ZPair &from = GetPair(prev);
+    ZPair &to   = GetPair(next);
+    to.correct = from.correct;
+    from.reverse = to.reverse;
+  }
+  virtual void OnJoin(IntPoint &e1prev, IntPoint &e1next, IntPoint &e2prev, IntPoint &e2next) override {
+    e1next.Z = e2prev.Z;
+    e2next.Z = e1prev.Z;
+  }
+  virtual void OnRemoveSpike(IntPoint &prev, IntPoint &spike, IntPoint &next) override {
+    if (prev == next) {
+      OnAppendOverlapping(prev, next);
+    } else if (spike == next) { // prev == spike is impossible, will automatically call OnAppendOverlapping instead.
+      OnAppendOverlapping(spike, next);
+    } else {
+      ZPair &from = GetPair(prev);
+      ZPair &spikeZ = GetPair(spike);
+      ZPair &to = GetPair(next);
+
+      bool firstLonger;
+      if (std::abs(prev.X - spike.X) > std::abs(prev.Y - spike.Y)) { // is x more precise than y?
+        firstLonger = std::abs(prev.X - spike.X) > std::abs(next.X - spike.X);
+      } else {
+        firstLonger = std::abs(prev.Y - spike.Y) > std::abs(next.Y - spike.Y);
+      }
+
+      if (firstLonger) { // is from further than to?
+        to.correct = StripBegin(spikeZ.correct, prev, spike, next);
+        StripBegin(from.reverse, spike, prev, next);
+      } else {
+        from.reverse = StripBegin(spikeZ.reverse, next, spike, prev);
+        StripBegin(to.correct, spike, next, prev);
+      }
+    }
+  }
+  virtual void OnOffset(int step, int steps, IntPoint& source, IntPoint& dest) override {
+    CLIPPER_UNUSED(step); CLIPPER_UNUSED(steps);
+    dest.Z = reinterpret_cast<cInt>(Clone(reinterpret_cast<T>(source.Z)));
+  }
+  virtual void OnFinishClipping() override {
+    m_pairs.clear();
+  }
+  virtual const std::vector<ZPair> *GetPairs() const {return &m_pairs;}
   virtual ~FollowingZFill() {}
 protected:
   // Override these functions for more complex edge attributes (like sub-extents)
 
   // Reverse the edge attribute pointed to by z
-  virtual void ReverseZ(cInt z) { }
+  virtual void Reverse(T &val) { CLIPPER_UNUSED(val); }
   // Clone the edge attribute pointed to by z and return the pointer to this clone.
-  virtual cInt Clone(cInt z) {return z;}
+  virtual T Clone(const T &val) {return val;}
   // Strip the range [from, pt) out of the edge attribute pointed to by z and return
   // a new attribute containing only this range.
   // pt is guaranteed to be on the line between from and to (within integer truncation)
   // and not coincident with either.
-  virtual cInt StripBegin(cInt z, const IntPoint& from, const IntPoint& to, const IntPoint& pt) {return z;}
+  virtual T StripBegin(T &val, const IntPoint& from, const IntPoint& to, const IntPoint& pt) {
+    CLIPPER_UNUSED(from); CLIPPER_UNUSED(to); CLIPPER_UNUSED(pt);
+    return val;
+  }
 
 private:
-  void SplitEdge(const IntPoint &prev, const IntPoint &pt, const IntPoint &next, cInt &ptCorrect, cInt &ptReverse);
-  void RemoveSpike(const IntPoint &from, const IntPoint &spike, const IntPoint &to, cInt &fromZ, const cInt &spikeZ, cInt &toZ);
+  std::vector<ZPair> m_pairs;
+
+  cInt InitPoint(const cInt &curr, const cInt &next) {
+    m_pairs.emplace_back(reinterpret_cast<T>(curr), Clone(reinterpret_cast<T>(next)));
+    ZPair &newPair = m_pairs.back();
+    Reverse(newPair.reverse);
+    return m_pairs.size() - 1;
+  }
+  cInt CreatePair(const T &correct, const T &reverse) {
+    m_pairs.emplace_back(correct, reverse);
+    return m_pairs.size() - 1;
+  }
+  inline ZPair &GetPair(const IntPoint &pt) {
+    return GetPair(pt.Z);
+  }
+  inline ZPair &GetPair(const cInt &z) {
+    return m_pairs[z];
+  };
+
+  // disable copy and assignment
+  void operator=(const FollowingZFill &other) { CLIPPER_UNUSED(other); }
+  FollowingZFill(const FollowingZFill &other) { CLIPPER_UNUSED(other); }
 };
 #endif
 

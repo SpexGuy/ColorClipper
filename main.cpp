@@ -8,10 +8,12 @@ using namespace std;
 using namespace ClipperLib;
 
 #ifdef use_xyz
-cInt CreateZ(const string &name) {
+string *CreateStr(const string &name) {
     // leaky, but program doesn't run long so it's fine
-    string *value = new string(name);
-    return reinterpret_cast<cInt>(value);
+    return new string(name);
+}
+cInt CreateZ(const string &name) {
+    return reinterpret_cast<cInt>(CreateStr(name));
 }
 string &toString(cInt value) {
 //    if (!value) {
@@ -28,16 +30,16 @@ float dist(const IntPoint &p1, const IntPoint &p2) {
 }
 
 
-class TestFollower : public FollowingZFill {
+class TestFollower : public FollowingZFill<string *> {
 protected:
-    virtual void ReverseZ(cInt z) override {toString(z) = "r("+toString(z)+")";}
-    virtual cInt Clone(cInt z) override {return CreateZ(toString(z));}
-    virtual cInt StripBegin(cInt z, const IntPoint& from, const IntPoint& to, const IntPoint& pt) override {
+    virtual void Reverse(string *&foo) override {*foo = "r("+*foo+")";}
+    virtual string *Clone(string * const &str) override {return CreateStr(*str);}
+    virtual string *StripBegin(string *&str, const IntPoint& from, const IntPoint& to, const IntPoint& pt) override {
         stringstream begin, end;
-        begin << "b(" << toString(z) << ", " << pt.X - from.X << "," << pt.Y - from.Y << ")";
-        end   << "e(" << toString(z) << ", " << pt.X - to.X   << "," << pt.Y - to.Y   << ")";
-        toString(z) = end.str();
-        return CreateZ(begin.str());
+        begin << "b(" << *str << ", " << pt.X - from.X << "," << pt.Y - from.Y << ")";
+        end   << "e(" << *str << ", " << pt.X - to.X   << "," << pt.Y - to.Y   << ")";
+        *str = end.str();
+        return CreateStr(begin.str());
     }
 };
 
@@ -149,8 +151,8 @@ void joinTest(Paths &test) {
     Path brTrig;
     base << IntPoint(400, 700, CreateZ("C1"))
          << IntPoint(100, 400, CreateZ("C2"))
-         << IntPoint(300, 200, CreateZ("C3"))
-         << IntPoint(500, 200, CreateZ("C4"))
+//         << IntPoint(300, 200, CreateZ("C3"))
+//         << IntPoint(500, 200, CreateZ("C4"))
          << IntPoint(700, 400, CreateZ("C5"));
     tlTrig << IntPoint(200, 600, CreateZ("Tl1"))
            << IntPoint(200, 500, CreateZ("Tl2"))
@@ -164,7 +166,7 @@ void joinTest(Paths &test) {
     brTrig << IntPoint(600, 100, CreateZ("Br1"))
            << IntPoint(600, 300, CreateZ("Br2"))
            << IntPoint(500, 200, CreateZ("Br3"));
-    test << base << tlTrig << trTrig << blTrig << brTrig;
+    test << base /*<< tlTrig*/ << trTrig;// << blTrig << brTrig;
 }
 
 void noncontributingIntersectionTest(Paths &test) {
@@ -226,16 +228,30 @@ void offsetTest(Paths &test) {
 }
 #endif
 
-int main() {
-    #ifdef use_xyz
+const std::vector<TestFollower::ZPair> *pairs;
+void Clip(Paths &test, Paths &solution) {
+    TestFollower zFill;
+    pairs = zFill.GetPairs();
+    Clipper clpr;
+    clpr.PreserveCollinear(true);
+    clpr.Callback(&zFill);
+    clpr.AddPaths(test, ptSubject, true);
+    clpr.Execute(ctUnion, solution, pftNonZero, pftNonZero);
+}
+
+void Offset(Paths &test, Paths &solution) {
     TestFollower zFill;
     ClipperOffset clpr;
     clpr.Callback(&zFill);
-    Paths test;
-    offsetTest(test);
     clpr.AddPaths(test, jtMiter, etClosedPolygon);
-    Paths solution;
     clpr.Execute(solution, 100);
+}
+
+int main() {
+    #ifdef use_xyz
+    Paths test, solution;
+    joinTest(test);
+    Clip(test, solution);
     cout << "Clipper returned " << solution.size() << " paths." << endl;
     for (Path p : solution) {
         cout << "Path (" << p.size() << ")" << endl;
