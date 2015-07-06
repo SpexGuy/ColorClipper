@@ -3868,10 +3868,10 @@ void Clipper::SetIntersectionIntermediateZ(TEdge *e1, TEdge *e2, IntPoint &left,
   if (e2->Side == esRight) m_ZFill->OnReverseGuess(right);
 }
 void Clipper::SetIntersectionMinMaxZ(TEdge *e1, TEdge *e2, IntPoint &min, IntPoint &max) {
-  SetIntersectionZ(e1, e2, min, max);
+  SetIntersectionZ(e1, e2, max, min);
   // point both edges rightwards
-  if (!e1->LMLIsForward) m_ZFill->OnReverseGuess(min);
-  if (e2->LMLIsForward) m_ZFill->OnReverseGuess(max);
+  if (!e1->LMLIsForward) m_ZFill->OnReverseGuess(max);
+  if (e2->LMLIsForward) m_ZFill->OnReverseGuess(min);
   // swap their reverse values
   m_ZFill->OnSwapReverse(min, max);
   // orient them for OutPt insertion
