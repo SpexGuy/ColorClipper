@@ -1,8 +1,8 @@
 /*******************************************************************************
 *                                                                              *
 * Author    :  Angus Johnson, Martin Wickham                                   *
-* Version   :  7.0.0                                                           *
-* Date      :  1 July 2015                                                     *
+* Version   :  7.1.0                                                           *
+* Date      :  7 July 2015                                                     *
 * Website   :  http://www.angusj.com                                           *
 * Copyright :  Angus Johnson 2010-2014, Martin Wickham 2015                    *
 *                                                                              *
