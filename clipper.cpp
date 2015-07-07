@@ -77,6 +77,9 @@ struct TEdge {
   OutCoord Bot;
   OutCoord Curr;
   OutCoord Top;
+#ifdef use_xyz
+  OutCoord LastEmitted;
+#endif
   IntPoint Delta;
   double Dx;
   PolyType PolyTyp;
@@ -754,6 +757,9 @@ void ClipperBase::InitEdge2(TEdge& e, PolyType Pt)
   }
   SetDx(e);
   e.PolyTyp = Pt;
+#ifdef use_xyz
+  e.LastEmitted = e.Bot;
+#endif
 }
 //------------------------------------------------------------------------------
 
@@ -1311,6 +1317,9 @@ void ClipperBase::Reset()
     if (e)
     {
       e->Curr = e->Bot;
+#ifdef use_xyz
+      e->LastEmitted = e->Bot;
+#endif
       e->Side = esLeft;
       e->OutIdx = Unassigned;
     }
@@ -1319,6 +1328,9 @@ void ClipperBase::Reset()
     if (e)
     {
       e->Curr = e->Bot;
+#ifdef use_xyz
+      e->LastEmitted = e->Bot;
+#endif
       e->Side = esRight;
       e->OutIdx = Unassigned;
     }
@@ -2835,6 +2847,9 @@ void Clipper::UpdateEdgeIntoAEL(TEdge *&e)
   e->NextInLML->WindCnt2 = e->WindCnt2;
   e = e->NextInLML;
   e->Curr = e->Bot;
+#ifdef use_xyz
+  e->LastEmitted = e->Bot;
+#endif
   e->PrevInAEL = AelPrev;
   e->NextInAEL = AelNext;
   if (!IsHorizontal(*e)) InsertScanbeam(e->Top.Y);
@@ -3800,29 +3815,16 @@ void Clipper::JoinCommonEdges()
 }
 
 #ifdef use_xyz
-IntPoint2Z Clipper::LastEmitted(TEdge *e) {
-  if (e->OutIdx >= 0) {
-    bool onFront = (e->Side == esLeft);
-    OutRec *outRec = m_PolyOuts[e->OutIdx];
-    IntPoint2Z pt;
-    if (onFront) pt = outRec->Pts->Pt;
-    else pt = outRec->Pts->Prev->Pt;
-    // Make sure that the winding guess for the emitted point is the same as the original
-    if ((e->Side == esLeft) ^ (e->LMLIsForward))
-      pt.reverse();
-    return pt;
-  } else {
-    return e->Bot;
-  }
-}
 void Clipper::SetIntersectionZ(TEdge *e1, TEdge *e2, IntPoint2Z &e1pt, IntPoint2Z &e2pt) {
-  IntPoint2Z e1Bot = LastEmitted(e1);
-  IntPoint2Z e2Bot = LastEmitted(e2);
+  IntPoint2Z e1Bot = e1->LastEmitted;
+  IntPoint2Z e2Bot = e2->LastEmitted;
   const IntPoint2Z &e1From = e1->LMLIsForward ? e1Bot : e1->Top;
   const IntPoint2Z &e1To   = e1->LMLIsForward ? e1->Top : e1Bot;
   const IntPoint2Z &e2From = e2->LMLIsForward ? e2Bot : e2->Top;
   const IntPoint2Z &e2To   = e2->LMLIsForward ? e2->Top : e2Bot;
   m_ZFill->OnIntersection(e1From, e1pt, e1To, e2From, e2pt, e2To);
+  e1->LastEmitted = e1pt;
+  e2->LastEmitted = e2pt;
 }
 void Clipper::SetIntersectionIntermediateZ(TEdge *e1, TEdge *e2, IntPoint2Z &left, IntPoint2Z &right) {
   SetIntersectionZ(e1, e2, left, right);
@@ -3869,10 +3871,12 @@ void Clipper::SetLocalMinZ(TEdge *e1, TEdge *e2, IntPoint2Z& pt) {
 }
 void Clipper::SetEdgeSplitZ(TEdge *e, IntPoint2Z &pt) {
   if (e->LMLIsForward) {
-    m_ZFill->OnSplitEdge(LastEmitted(e), pt, e->Top);
+    m_ZFill->OnSplitEdge(e->LastEmitted, pt, e->Top);
+    e->LastEmitted = pt;
     if (e->Side != esLeft) pt.reverse();
   } else {
-    m_ZFill->OnSplitEdge(e->Top, pt, LastEmitted(e));
+    m_ZFill->OnSplitEdge(e->Top, pt, e->LastEmitted);
+    e->LastEmitted = pt;
     if (e->Side != esRight) pt.reverse();
   }
 }
