@@ -5007,8 +5007,6 @@ cInt FollowingZFill::StripBegin(cInt z, const IntPoint &from, const IntPoint &to
   UNUSED(from); UNUSED(to); UNUSED(pt);
   return z;
 }
-
-
 #endif // use_xyz
 
 } //ClipperLib namespace
