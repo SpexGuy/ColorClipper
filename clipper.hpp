@@ -173,9 +173,8 @@ struct DoublePoint
 class ZFill {
 public:
   virtual void InitializeReverse(IntPoint2Z &curr, IntPoint2Z &next);
-  virtual void OnIntersection(const IntPoint2Z& e1bot, const IntPoint2Z& e1top,
-                              const IntPoint2Z& e2bot, const IntPoint2Z& e2top,
-                              const IntPoint& pt, cInt& z1f, cInt& z1r, cInt& z2f, cInt& z2r);
+  virtual void OnIntersection(const IntPoint2Z& e1bot, IntPoint2Z &e1pt, const IntPoint2Z& e1top,
+                              const IntPoint2Z& e2bot, IntPoint2Z &e2pt, const IntPoint2Z& e2top);
   // Points here are passed in the same order they were in the original polygon
   virtual void OnSplitEdge(const IntPoint2Z &prev, IntPoint2Z &pt, const IntPoint2Z &next);
   virtual void OnAppendOverlapping(IntPoint2Z &prev, IntPoint2Z &to);
@@ -188,9 +187,8 @@ public:
 class FollowingZFill : public ZFill {
 public:
   virtual void InitializeReverse(IntPoint2Z &curr, IntPoint2Z &next) override;
-  virtual void OnIntersection(const IntPoint2Z& e1bot, const IntPoint2Z& e1top,
-                              const IntPoint2Z& e2bot, const IntPoint2Z& e2top,
-                              const IntPoint& pt, cInt& z1f, cInt& z1r, cInt& z2f, cInt& z2r) override;
+  virtual void OnIntersection(const IntPoint2Z& e1bot, IntPoint2Z &e1pt, const IntPoint2Z& e1top,
+                              const IntPoint2Z& e2bot, IntPoint2Z &e2pt, const IntPoint2Z& e2top) override;
   virtual void OnSplitEdge(const IntPoint2Z &prev, IntPoint2Z &pt, const IntPoint2Z &next) override;
   virtual void OnAppendOverlapping(IntPoint2Z &prev, IntPoint2Z &to) override;
   virtual void OnJoin(IntPoint2Z &e1from, IntPoint2Z &e1to, IntPoint2Z &e2from, IntPoint2Z &e2to) override;
@@ -441,9 +439,9 @@ private:
   void SetIntermediateZ(TEdge *e, IntPoint2Z& pt);
   void SetLocalMaxZ(TEdge* e1, TEdge* e2, IntPoint2Z& pt);
   void SetLocalMinZ(TEdge* e1, TEdge* e2, IntPoint2Z& pt);
-  void SetIntersectionZ(TEdge *e1, TEdge *e2, const IntPoint &pt, cInt &e1f, cInt &e1r, cInt &e2f, cInt &e2r);
-  void SetIntersectionIntermediateZ(TEdge *e1, TEdge *e2, const IntPoint &pt, IntPoint2Z &p1, IntPoint2Z &p2);
-  void SetIntersectionMinMaxZ(TEdge *e1, TEdge *e2, const IntPoint &pt, IntPoint2Z &min, IntPoint2Z &max);
+  void SetIntersectionZ(TEdge *e1, TEdge *e2, IntPoint2Z &p1, IntPoint2Z &p2);
+  void SetIntersectionIntermediateZ(TEdge *e1, TEdge *e2, IntPoint2Z &left, IntPoint2Z &right);
+  void SetIntersectionMinMaxZ(TEdge *e1, TEdge *e2, IntPoint2Z &min, IntPoint2Z &max);
   void SetEdgeSplitZ(OutPt *splitPt);
   void SetEdgeSplitZ(TEdge *edge, IntPoint2Z &pt);
 #endif

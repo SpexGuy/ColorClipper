@@ -1820,7 +1820,7 @@ OutPt* Clipper::AddIntersectionMinPoly(TEdge *e1, TEdge *e2, const IntPoint &pt)
   OutCoord oc(pt);
 #ifdef use_xyz
   OutCoord max(pt);
-  SetIntersectionMinMaxZ(e1, e2, pt, oc, max);
+  SetIntersectionMinMaxZ(e1, e2, oc, max);
 #endif
   return AddLocalMinPoly(e1, e2, oc);
 }
@@ -2174,7 +2174,7 @@ void Clipper::IntersectEdges(TEdge *e1, TEdge *e2, const IntPoint &Pt)
 #ifdef use_xyz
       OutCoord min(Pt);
       OutCoord max(Pt);
-      SetIntersectionMinMaxZ(e1, e2, Pt, min, max);
+      SetIntersectionMinMaxZ(e1, e2, min, max);
       AddLocalMaxPoly(e1, e2, max);
 #else
       AddLocalMaxPoly(e1, e2, Pt);
@@ -2185,7 +2185,7 @@ void Clipper::IntersectEdges(TEdge *e1, TEdge *e2, const IntPoint &Pt)
 #ifdef use_xyz
       OutCoord z1(Pt);
       OutCoord z2(Pt);
-      SetIntersectionIntermediateZ(e1, e2, Pt, z1, z2);
+      SetIntersectionIntermediateZ(e1, e2, z1, z2);
       AddOutPt(e1, z1);
       AddOutPt(e2, z2);
 #else
@@ -2203,7 +2203,7 @@ void Clipper::IntersectEdges(TEdge *e1, TEdge *e2, const IntPoint &Pt)
 #ifdef use_xyz
       OutCoord z1(Pt);
       OutCoord z2(Pt);
-      SetIntersectionIntermediateZ(e1, e2, Pt, z1, z2);
+      SetIntersectionIntermediateZ(e1, e2, z1, z2);
       AddOutPt(e1, z1);
 #else
       AddOutPt(e1, Pt);
@@ -2219,7 +2219,7 @@ void Clipper::IntersectEdges(TEdge *e1, TEdge *e2, const IntPoint &Pt)
 #ifdef use_xyz
       OutCoord z1(Pt);
       OutCoord z2(Pt);
-      SetIntersectionIntermediateZ(e1, e2, Pt, z1, z2);
+      SetIntersectionIntermediateZ(e1, e2, z1, z2);
       AddOutPt(e2, z2);
 #else
       AddOutPt(e2, Pt);
@@ -3815,24 +3815,34 @@ IntPoint2Z Clipper::LastEmitted(TEdge *e) {
     return e->Bot;
   }
 }
-void Clipper::SetIntersectionZ(TEdge *e1, TEdge *e2, const IntPoint &pt, cInt &e1f, cInt &e1r, cInt &e2f, cInt &e2r) {
+void Clipper::SetIntersectionZ(TEdge *e1, TEdge *e2, IntPoint2Z &e1pt, IntPoint2Z &e2pt) {
   IntPoint2Z e1Bot = LastEmitted(e1);
   IntPoint2Z e2Bot = LastEmitted(e2);
-  IntPoint2Z &e1From = e1->LMLIsForward ? e1Bot : e1->Top;
-  IntPoint2Z &e1To   = e1->LMLIsForward ? e1->Top : e1Bot;
-  IntPoint2Z &e2From = e2->LMLIsForward ? e2Bot : e2->Top;
-  IntPoint2Z &e2To   = e2->LMLIsForward ? e2->Top : e2Bot;
-  m_ZFill->OnIntersection(e1From, e1To, e2From, e2To, pt, e1f, e1r, e2f, e2r);
-  if (!e1->LMLIsForward) std::swap(e1f, e1r);
-  if (!e2->LMLIsForward) std::swap(e2f, e2r);
+  const IntPoint2Z &e1From = e1->LMLIsForward ? e1Bot : e1->Top;
+  const IntPoint2Z &e1To   = e1->LMLIsForward ? e1->Top : e1Bot;
+  const IntPoint2Z &e2From = e2->LMLIsForward ? e2Bot : e2->Top;
+  const IntPoint2Z &e2To   = e2->LMLIsForward ? e2->Top : e2Bot;
+  m_ZFill->OnIntersection(e1From, e1pt, e1To, e2From, e2pt, e2To);
 }
-void Clipper::SetIntersectionIntermediateZ(TEdge *e1, TEdge *e2, const IntPoint &pt, IntPoint2Z &p1, IntPoint2Z &p2) {
-  SetIntersectionZ(e1, e2, pt, p1.correctZ, p2.reverseZ, p2.correctZ, p1.reverseZ);
-  if (e1->Side == esRight) p1.reverse();
-  if (e2->Side == esRight) p2.reverse();
+void Clipper::SetIntersectionIntermediateZ(TEdge *e1, TEdge *e2, IntPoint2Z &left, IntPoint2Z &right) {
+  SetIntersectionZ(e1, e2, left, right);
+  // point both edges downwards
+  if (!e1->LMLIsForward) left.reverse();
+  if (!e2->LMLIsForward) right.reverse();
+  // twist edges into left and right
+  std::swap(left.reverseZ, right.reverseZ);
+  // orient edges for OutPt insertion
+  if (e1->Side == esRight) left.reverse();
+  if (e2->Side == esRight) right.reverse();
 }
-void Clipper::SetIntersectionMinMaxZ(TEdge *e1, TEdge *e2, const IntPoint &pt, IntPoint2Z &min, IntPoint2Z &max) {
-  SetIntersectionZ(e1, e2, pt, max.correctZ, min.reverseZ, max.reverseZ, min.correctZ);
+void Clipper::SetIntersectionMinMaxZ(TEdge *e1, TEdge *e2, IntPoint2Z &min, IntPoint2Z &max) {
+  SetIntersectionZ(e1, e2, max, min);
+  // point both edges rightwards
+  if (!e1->LMLIsForward) max.reverse();
+  if (e2->LMLIsForward) min.reverse();
+  // twist edges into min and max
+  std::swap(min.reverseZ, max.reverseZ);
+  // orient edges for OutPt insertion
   if (e1->Side == esRight) max.reverse();
   if (e2->Side == esRight) min.reverse();
 }
@@ -4816,12 +4826,9 @@ std::ostream& operator <<(std::ostream &s, const Paths &p)
 // ZFill Strategies
 //------------------------------------------------------------------------------
 void ZFill::InitializeReverse(IntPoint2Z &curr, IntPoint2Z &next) { }
-
-void ZFill::OnIntersection(const IntPoint2Z &e1bot, const IntPoint2Z &e1top,
-                           const IntPoint2Z &e2bot, const IntPoint2Z &e2top,
-                           const IntPoint& pt, cInt &z1f, cInt &z1r, cInt &z2f, cInt &z2r) { }
+void ZFill::OnIntersection(const IntPoint2Z &e1from, IntPoint2Z &e1pt, const IntPoint2Z &e1to,
+                           const IntPoint2Z &e2from, IntPoint2Z &e2pt, const IntPoint2Z &e2to) { }
 void ZFill::OnSplitEdge(const IntPoint2Z &prev, IntPoint2Z &pt, const IntPoint2Z &next) { }
-
 void ZFill::OnAppendOverlapping(IntPoint2Z &prev, IntPoint2Z &to) { }
 void ZFill::OnJoin(IntPoint2Z &e1from, IntPoint2Z &e1to, IntPoint2Z &e2from, IntPoint2Z &e2to) { }
 void ZFill::OnRemoveSpike(IntPoint2Z &prev, IntPoint2Z &curr, IntPoint2Z &next) { }
@@ -4837,11 +4844,10 @@ void FollowingZFill::InitializeReverse(IntPoint2Z &curr, IntPoint2Z &next) {
   curr.reverseZ = Clone(next.correctZ);
   ReverseZ(curr.reverseZ);
 }
-void FollowingZFill::OnIntersection(const IntPoint2Z &e1From, const IntPoint2Z &e1To,
-                            const IntPoint2Z &e2From, const IntPoint2Z &e2To,
-                            const IntPoint &pt, cInt& z1f, cInt& z1r, cInt& z2f, cInt& z2r) {
-  SplitEdge(e1From, pt, e1To, z1f, z1r);
-  SplitEdge(e2From, pt, e2To, z2f, z2r);
+void FollowingZFill::OnIntersection(const IntPoint2Z &e1From, IntPoint2Z &e1pt, const IntPoint2Z &e1To,
+                                    const IntPoint2Z &e2From, IntPoint2Z &e2pt, const IntPoint2Z &e2To) {
+  OnSplitEdge(e1From, e1pt, e1To);
+  OnSplitEdge(e2From, e2pt, e2To);
 }
 void FollowingZFill::OnAppendOverlapping(IntPoint2Z &from, IntPoint2Z &to) {
   to.correctZ = from.correctZ;
