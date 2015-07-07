@@ -395,15 +395,15 @@ private:
   void DoMaxima(TEdge *e);
   void ProcessHorizontals(bool IsTopOfScanbeam);
   void ProcessHorizontal(TEdge *horzEdge, bool isTopOfScanbeam);
-  void AddLocalMaxPoly(TEdge *e1, TEdge *e2, OutCoord &pt);
-  OutPt* AddLocalMinPoly(TEdge *e1, TEdge *e2, OutCoord &pt);
+  void AddLocalMaxPoly(TEdge *e1, TEdge *e2, const OutCoord &pt);
+  OutPt* AddLocalMinPoly(TEdge *e1, TEdge *e2, const OutCoord &pt);
   OutPt* AddIntersectionMinPoly(TEdge *e1, TEdge *e2, const IntPoint &pt);
   OutRec* GetOutRec(int idx);
   void LinkPolygon(OutPt *tail1, OutPt *head1, OutPt *tail2, OutPt *head2);
   void AppendPolygon(TEdge *e1, TEdge *e2);
   void IntersectEdges(TEdge *e1, TEdge *e2, const IntPoint &pt);
   OutRec* CreateOutRec();
-  OutPt* AddOutPt(TEdge *e, OutCoord &pt);
+  OutPt* AddOutPt(TEdge *e, const OutCoord &pt);
   void DisposeAllOutRecs();
   void DisposeOutRec(PolyOutList::size_type index);
   bool ProcessIntersections(const cInt topY);
