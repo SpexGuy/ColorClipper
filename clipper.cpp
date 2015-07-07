@@ -3841,7 +3841,7 @@ IntPoint Clipper::LastEmitted(TEdge *e) {
     else pt = outRec->Pts->Prev->Pt;
     // Make sure that the winding guess for the emitted point is the same as the original
     if ((e->Side == esLeft) ^ (e->LMLIsForward))
-      m_ZFill->OnReverseGuess(pt);
+      m_ZFill->OnReverseGuess(pt); //TODO: BUG - This has side effects!!!
     return pt;
   } else {
     return e->Bot;

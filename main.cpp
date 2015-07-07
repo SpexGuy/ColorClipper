@@ -231,7 +231,7 @@ void offsetTest(Paths &test) {
 const std::vector<TestFollower::ZPair> *pairs;
 void Clip(Paths &test, Paths &solution) {
     TestFollower zFill;
-    pairs = zFill.GetPairs();
+    pairs = zFill.GetPairs(); // for debugging
     Clipper clpr;
     clpr.PreserveCollinear(true);
     clpr.Callback(&zFill);
@@ -250,7 +250,7 @@ void Offset(Paths &test, Paths &solution) {
 int main() {
     #ifdef use_xyz
     Paths test, solution;
-    joinTest(test);
+    noncontributingIntersectionTest(test); // TODO: This fails...
     Clip(test, solution);
     cout << "Clipper returned " << solution.size() << " paths." << endl;
     for (Path p : solution) {

@@ -183,14 +183,14 @@ public:
   }
   virtual void OnSplitEdge(const IntPoint &prev, IntPoint &pt, const IntPoint &next) override {
     if (pt == prev) {
-      ZPair &from = GetPair(prev);
+      const ZPair &from = GetPair(prev);
       pt.Z = CreatePair(from.correct, from.reverse);
     } else if (pt == next) {
-      ZPair &to = GetPair(next);
+      const ZPair &to = GetPair(next);
       pt.Z = CreatePair(to.correct, to.reverse);
     } else {
-      ZPair &from = GetPair(prev);
-      ZPair &to = GetPair(next);
+      ZPair &from = ClonePair(prev);
+      ZPair &to = ClonePair(next);
       pt.Z = CreatePair(StripBegin(  to.correct, prev, next, pt),
                         StripBegin(from.reverse, next, prev, pt));
     }
@@ -269,10 +269,21 @@ private:
     m_pairs.emplace_back(correct, reverse);
     return m_pairs.size() - 1;
   }
-  inline ZPair &GetPair(const IntPoint &pt) {
+  inline ZPair &ClonePair(const IntPoint &pt) { // TODO: this didn't fix anything (and why should it?). Remove?
+    const ZPair &pair = GetPair(pt);
+    cInt newIndex = CreatePair(pair.correct, pair.reverse);
+    return GetPair(newIndex);
+  }
+  inline ZPair &GetPair(IntPoint &pt) {
     return GetPair(pt.Z);
   }
-  inline ZPair &GetPair(const cInt &z) {
+  inline ZPair &GetPair(cInt &z) {
+    return m_pairs[z];
+  };
+  inline const ZPair &GetPair(const IntPoint &pt) {
+    return GetPair(pt.Z);
+  }
+  inline const ZPair &GetPair(const cInt &z) {
     return m_pairs[z];
   };
 
