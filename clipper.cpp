@@ -4860,42 +4860,41 @@ void FollowingZFill::OnJoin(IntPoint2Z &e1from, IntPoint2Z &e1to, IntPoint2Z &e2
   e2to.reverseZ = e1from.reverseZ;
 }
 void FollowingZFill::OnSplitEdge(const IntPoint2Z &prev, IntPoint2Z &pt, const IntPoint2Z &next) {
-  SplitEdge(prev, pt, next, pt.correctZ, pt.reverseZ);
+  if (pt == prev) {
+    pt.correctZ = prev.correctZ;
+    pt.reverseZ = prev.reverseZ;
+  } else if (pt == next) {
+    pt.correctZ = next.correctZ;
+    pt.reverseZ = next.reverseZ;
+  } else {
+    pt.correctZ = StripBegin(next.correctZ, prev, next, pt);
+    pt.reverseZ = StripBegin(prev.reverseZ, next, prev, pt);
+  }
 }
-void FollowingZFill::OnRemoveSpike(IntPoint2Z &prev, IntPoint2Z &curr, IntPoint2Z &next) {
-  RemoveSpike(prev, curr, next, prev.correctZ, curr.correctZ, next.correctZ);
+void FollowingZFill::OnRemoveSpike(IntPoint2Z &prev, IntPoint2Z &spike, IntPoint2Z &next) {
+  if (prev == next) {
+    OnAppendOverlapping(prev, next);
+  } else if (spike == next) { // prev == spike is impossible due to internals
+    OnAppendOverlapping(spike, next);
+  } else {
+    bool prevFarther; // is prev further from spike than next?
+    if (std::abs(prev.X - spike.X) > std::abs(prev.Y - spike.Y)) { // is x more precise than y?
+      prevFarther = std::abs(prev.X - spike.X) > std::abs(next.X - spike.X);
+    } else {
+      prevFarther = std::abs(prev.Y - spike.Y) > std::abs(next.Y - spike.Y);
+    }
+
+    if (prevFarther) {
+      next.correctZ = StripBegin(spike.correctZ, prev, spike, next);
+      StripBegin(prev.reverseZ, spike, prev, next);
+    } else {
+      prev.reverseZ = StripBegin(spike.reverseZ, next, spike, prev);
+      StripBegin(next.correctZ, spike, next, prev);
+    }
+  }
 }
 void FollowingZFill::OnOffset(int step, int steps, IntPoint& source, IntPoint& dest) {
   dest.Z = Clone(source.Z);
-}
-void FollowingZFill::RemoveSpike(const IntPoint2Z &from, const IntPoint2Z &spike, const IntPoint2Z &to, cInt &fromZ, const cInt &spikeZ, cInt &toZ) {
-  if (from == to) {
-    toZ = fromZ;
-  } else if (abs(from.X - spike.X) > abs(from.Y - spike.Y)) { // is x more precise than y?
-    if (abs(from.X - spike.X) > abs(to.X - spike.X)) { // is from further than to?
-      toZ = StripBegin(spikeZ, from, spike, to);
-    } else {
-      StripBegin(toZ, spike, to, from);
-    }
-  } else {
-    if (abs(from.Y - spike.Y) > abs(to.Y - spike.Y)) { // is from further than to?
-      toZ = StripBegin(spikeZ, from, spike, to);
-    } else {
-      StripBegin(toZ, spike, to, from);
-    }
-  }
-}
-void FollowingZFill::SplitEdge(const IntPoint2Z &prev, const IntPoint &pt, const IntPoint2Z &next, cInt &ptCorrect, cInt &ptReverse) {
-  if (pt == prev) {
-    ptCorrect = prev.correctZ;
-    ptReverse = prev.reverseZ;
-  } else if (pt == next) {
-    ptCorrect = next.correctZ;
-    ptReverse = next.reverseZ;
-  } else {
-    ptCorrect = StripBegin(next.correctZ, prev, next, pt);
-    ptReverse = StripBegin(prev.reverseZ, next, prev, pt);
-  }
 }
 
 

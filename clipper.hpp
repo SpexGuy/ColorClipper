@@ -207,10 +207,6 @@ protected:
   // pt is guaranteed to be on the line between from and to (within integer truncation)
   // and not coincident with either.
   virtual cInt StripBegin(cInt z, const IntPoint& from, const IntPoint& to, const IntPoint& pt) {return z;}
-
-private:
-  void SplitEdge(const IntPoint2Z &prev, const IntPoint &pt, const IntPoint2Z &next, cInt &ptCorrect, cInt &ptReverse);
-  void RemoveSpike(const IntPoint2Z &from, const IntPoint2Z &spike, const IntPoint2Z &to, cInt &fromZ, const cInt &spikeZ, cInt &toZ);
 };
 #endif
 
