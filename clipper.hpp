@@ -180,7 +180,7 @@ public:
   virtual void OnAppendOverlapping(IntPoint2Z &prev, IntPoint2Z &to);
   virtual void OnJoin(IntPoint2Z &e1from, IntPoint2Z &e1to, IntPoint2Z &e2from, IntPoint2Z &e2to);
   virtual void OnRemoveSpike(IntPoint2Z &prev, IntPoint2Z &curr, IntPoint2Z &next);
-  virtual void OnOffset(int step, int steps, IntPoint& z, IntPoint& pt);
+  virtual void OnOffset(int step, int steps, const IntPoint &prev, const IntPoint &curr, const IntPoint &next, IntPoint& pt);
   virtual ~ZFill() {}
 };
 
@@ -193,7 +193,7 @@ public:
   virtual void OnAppendOverlapping(IntPoint2Z &prev, IntPoint2Z &to) override;
   virtual void OnJoin(IntPoint2Z &e1from, IntPoint2Z &e1to, IntPoint2Z &e2from, IntPoint2Z &e2to) override;
   virtual void OnRemoveSpike(IntPoint2Z &prev, IntPoint2Z &curr, IntPoint2Z &next) override;
-  virtual void OnOffset(int step, int steps, IntPoint& z, IntPoint& pt) override;
+  virtual void OnOffset(int step, int steps, const IntPoint &prev, const IntPoint &curr, const IntPoint &next, IntPoint& pt) override;
   virtual ~FollowingZFill() {}
 protected:
   // Override these functions for more complex edge attributes (like sub-extents)
@@ -460,6 +460,7 @@ public:
   double ArcTolerance;
 private:
   Paths m_destPolys;
+  EndType m_endType;
   Path m_srcPoly;
   Path m_destPoly;
   std::vector<DoublePoint> m_normals;
@@ -478,7 +479,10 @@ private:
   void DoMiter(int j, int k, double r);
   void DoRound(int j, int k);
 #ifdef use_xyz
-  void SetOffsetZ(int step, int steps, IntPoint& source, IntPoint& dest);
+  void SetOffsetZ(int step, int steps, int index, IntPoint& dest);
+  void SetPointOffsetZ(int step, int steps, IntPoint& dest);
+  void SetFirstOffsetZ(int step, int steps, IntPoint& dest);
+  void SetLastOffsetZ(int step, int steps, IntPoint& dest);
 #endif
 };
 //------------------------------------------------------------------------------

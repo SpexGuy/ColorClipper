@@ -3970,8 +3970,43 @@ void ClipperOffset::Clear()
 //------------------------------------------------------------------------------
 
 #ifdef use_xyz
-inline void ClipperOffset::SetOffsetZ(int step, int steps, IntPoint& source, IntPoint& dest) {
-  m_ZFill->OnOffset(step, steps, source, dest);
+inline void ClipperOffset::SetOffsetZ(int step, int steps, int index, IntPoint& dest) {
+  if (index == 0) {
+    SetFirstOffsetZ(step, steps, dest);
+  } else if (index == m_srcPoly.size()-1) {
+    SetLastOffsetZ(step, steps, dest);
+  } else {
+    m_ZFill->OnOffset(step, steps, m_srcPoly[index-1], m_srcPoly[index], m_srcPoly[index+1], dest);
+  }
+}
+
+inline void ClipperOffset::SetFirstOffsetZ(int step, int steps, IntPoint &dest) {
+  switch(m_endType) {
+    case etClosedPolygon:
+    case etClosedLine:
+      m_ZFill->OnOffset(step, steps, m_srcPoly.back(), m_srcPoly[0], m_srcPoly[1], dest);
+      break;
+    default:
+      m_ZFill->OnOffset(step, steps, m_srcPoly[0], m_srcPoly[0], m_srcPoly[1], dest);
+      break;
+  }
+}
+
+inline void ClipperOffset::SetLastOffsetZ(int step, int steps, IntPoint &dest) {
+  int highI = m_srcPoly.size()-1;
+  switch(m_endType) {
+    case etClosedPolygon:
+    case etClosedLine:
+      m_ZFill->OnOffset(step, steps, m_srcPoly[highI-1], m_srcPoly[highI], m_srcPoly[0], dest);
+      break;
+    default:
+      m_ZFill->OnOffset(step, steps, m_srcPoly[highI-1], m_srcPoly[highI], m_srcPoly[highI], dest);
+      break;
+  }
+}
+
+inline void ClipperOffset::SetPointOffsetZ(int step, int steps, IntPoint &dest) {
+  m_ZFill->OnOffset(step, steps, m_srcPoly[0], m_srcPoly[0], m_srcPoly[0], dest);
 }
 //------------------------------------------------------------------------------
 
@@ -4179,6 +4214,7 @@ void ClipperOffset::DoOffset(double delta)
   {
     PolyNode& node = *m_polyNodes.Childs[i];
     m_srcPoly = node.Contour;
+    m_endType = node.m_endtype;
 
     int len = (int)m_srcPoly.size();
     if (len == 0 || (delta <= 0 && (len < 3 || node.m_endtype != etClosedPolygon)))
@@ -4186,7 +4222,7 @@ void ClipperOffset::DoOffset(double delta)
 
     m_destPoly.clear();
     if (len == 1)
-    {
+    { // do just a single point
       if (node.m_jointype == jtRound)
       {
         double X = 1.0, Y = 0.0;
@@ -4197,7 +4233,7 @@ void ClipperOffset::DoOffset(double delta)
             Round(m_srcPoly[0].Y + Y * delta)
           );
 #ifdef use_xyz
-          SetOffsetZ(j, steps, m_srcPoly[0], pt);
+          SetPointOffsetZ(j, int(steps)+1, pt);
 #endif
           m_destPoly.push_back(pt);
           double X2 = X;
@@ -4215,13 +4251,13 @@ void ClipperOffset::DoOffset(double delta)
             Round(m_srcPoly[0].Y + Y * delta)
           );
 #ifdef use_xyz
-          SetOffsetZ(0, 0, m_srcPoly[0], pt);
+          SetPointOffsetZ(j, 4, pt);
 #endif
           m_destPoly.push_back(pt);
           if (X < 0) X = 1;
           else if (Y < 0) Y = 1;
           else X = -1;
-        }
+        };
       }
       m_destPolys.push_back(m_destPoly);
       continue;
@@ -4270,16 +4306,16 @@ void ClipperOffset::DoOffset(double delta)
       if (node.m_endtype == etOpenButt)
       {
         int j = len - 1;
-        pt1 = IntPoint((cInt)Round(m_srcPoly[j].X + m_normals[j].X *
-          delta), (cInt)Round(m_srcPoly[j].Y + m_normals[j].Y * delta));
+        pt1 = IntPoint((cInt)Round(m_srcPoly[j].X + m_normals[j].X * delta),
+                       (cInt)Round(m_srcPoly[j].Y + m_normals[j].Y * delta));
 #ifdef use_xyz
-        SetOffsetZ(0, 0, m_srcPoly[j], pt1);
+        SetLastOffsetZ(0, 2, pt1);
 #endif
         m_destPoly.push_back(pt1);
-        pt1 = IntPoint((cInt)Round(m_srcPoly[j].X - m_normals[j].X *
-          delta), (cInt)Round(m_srcPoly[j].Y - m_normals[j].Y * delta));
+        pt1 = IntPoint((cInt)Round(m_srcPoly[j].X - m_normals[j].X * delta),
+                       (cInt)Round(m_srcPoly[j].Y - m_normals[j].Y * delta));
 #ifdef use_xyz
-        SetOffsetZ(0, 0, m_srcPoly[j], pt1);
+        SetLastOffsetZ(1, 2, pt1);
 #endif
         m_destPoly.push_back(pt1);
       }
@@ -4301,20 +4337,21 @@ void ClipperOffset::DoOffset(double delta)
       m_normals[0] = DoublePoint(-m_normals[1].X, -m_normals[1].Y);
 
       k = len - 1;
-      for (int j = k - 1; j > 0; --j) OffsetPoint(j, k, node.m_jointype);
+      for (int j = k - 1; j > 0; --j)
+        OffsetPoint(j, k, node.m_jointype);
 
       if (node.m_endtype == etOpenButt)
       {
         pt1 = IntPoint((cInt)Round(m_srcPoly[0].X - m_normals[0].X * delta),
-          (cInt)Round(m_srcPoly[0].Y - m_normals[0].Y * delta));
+                       (cInt)Round(m_srcPoly[0].Y - m_normals[0].Y * delta));
 #ifdef use_xyz
-        SetOffsetZ(0, 0, m_srcPoly[0], pt1);
+        SetFirstOffsetZ(0, 2, pt1);
 #endif
         m_destPoly.push_back(pt1);
         pt1 = IntPoint((cInt)Round(m_srcPoly[0].X + m_normals[0].X * delta),
-          (cInt)Round(m_srcPoly[0].Y + m_normals[0].Y * delta));
+                       (cInt)Round(m_srcPoly[0].Y + m_normals[0].Y * delta));
 #ifdef use_xyz
-        SetOffsetZ(0, 0, m_srcPoly[0], pt1);
+        SetFirstOffsetZ(1, 2, pt1);
 #endif
         m_destPoly.push_back(pt1);
       }
@@ -4344,8 +4381,12 @@ void ClipperOffset::OffsetPoint(int j, int& k, JoinType jointype)
     if (cosA > 0) // angle => 0 degrees
     {
       //COLOR: This is new
-      m_destPoly.push_back(IntPoint(Round(m_srcPoly[j].X + m_normals[k].X * m_delta),
-        Round(m_srcPoly[j].Y + m_normals[k].Y * m_delta)));
+      IntPoint pt = IntPoint(Round(m_srcPoly[j].X + m_normals[k].X * m_delta),
+                             Round(m_srcPoly[j].Y + m_normals[k].Y * m_delta));
+#ifdef use_xyz
+      SetOffsetZ(0, 1, j, pt);
+#endif
+      m_destPoly.push_back(pt);
       return; 
     }
     //else angle => 180 degrees   
@@ -4356,18 +4397,20 @@ void ClipperOffset::OffsetPoint(int j, int& k, JoinType jointype)
   if (m_sinA * m_delta < 0)
   {
     IntPoint pt = IntPoint(Round(m_srcPoly[j].X + m_normals[k].X * m_delta),
-      Round(m_srcPoly[j].Y + m_normals[k].Y * m_delta)
-    );
+                           Round(m_srcPoly[j].Y + m_normals[k].Y * m_delta));
 #ifdef use_xyz
-    SetOffsetZ(0, 0, m_srcPoly[j], pt);
+    SetOffsetZ(0, 3, j, pt);
 #endif
     m_destPoly.push_back(pt);
-    m_destPoly.push_back(m_srcPoly[j]);
-    pt = IntPoint(Round(m_srcPoly[j].X + m_normals[j].X * m_delta),
-      Round(m_srcPoly[j].Y + m_normals[j].Y * m_delta)
-    );
+    pt = m_srcPoly[j];
 #ifdef use_xyz
-    SetOffsetZ(0, 0, m_srcPoly[j], pt);
+    SetOffsetZ(1, 3, j, pt);
+#endif
+    m_destPoly.push_back(pt);
+    pt = IntPoint(Round(m_srcPoly[j].X + m_normals[j].X * m_delta),
+                  Round(m_srcPoly[j].Y + m_normals[j].Y * m_delta));
+#ifdef use_xyz
+    SetOffsetZ(2, 3, j, pt);
 #endif
     m_destPoly.push_back(pt);
   }
@@ -4396,14 +4439,14 @@ void ClipperOffset::DoSquare(int j, int k)
       Round(m_srcPoly[j].X + m_delta * (m_normals[k].X - m_normals[k].Y * dx)),
       Round(m_srcPoly[j].Y + m_delta * (m_normals[k].Y + m_normals[k].X * dx)));
 #ifdef use_xyz
-  SetOffsetZ(0, 0, m_srcPoly[j], pt);
+  SetOffsetZ(0, 2, j, pt);
 #endif
   m_destPoly.push_back(pt);
   pt = IntPoint(
       Round(m_srcPoly[j].X + m_delta * (m_normals[j].X + m_normals[j].Y * dx)),
       Round(m_srcPoly[j].Y + m_delta * (m_normals[j].Y - m_normals[j].X * dx)));
 #ifdef use_xyz
-  SetOffsetZ(0, 0, m_srcPoly[j], pt);
+  SetOffsetZ(1, 2, j, pt);
 #endif
   m_destPoly.push_back(pt);
 }
@@ -4413,9 +4456,9 @@ void ClipperOffset::DoMiter(int j, int k, double r)
 {
   double q = m_delta / r;
   IntPoint pt = IntPoint(Round(m_srcPoly[j].X + (m_normals[k].X + m_normals[j].X) * q),
-      Round(m_srcPoly[j].Y + (m_normals[k].Y + m_normals[j].Y) * q));
+                         Round(m_srcPoly[j].Y + (m_normals[k].Y + m_normals[j].Y) * q));
 #ifdef use_xyz
-  SetOffsetZ(0, 0, m_srcPoly[j], pt);
+  SetOffsetZ(0, 1, j, pt);
 #endif
   m_destPoly.push_back(pt);
 }
@@ -4434,7 +4477,7 @@ void ClipperOffset::DoRound(int j, int k)
         Round(m_srcPoly[j].X + X * m_delta),
         Round(m_srcPoly[j].Y + Y * m_delta));
 #ifdef use_xyz
-    SetOffsetZ(i, steps, m_srcPoly[j], pt);
+    SetOffsetZ(i, steps+1, j, pt);
 #endif
     m_destPoly.push_back(pt);
     X2 = X;
@@ -4445,7 +4488,7 @@ void ClipperOffset::DoRound(int j, int k)
     Round(m_srcPoly[j].X + m_normals[j].X * m_delta),
     Round(m_srcPoly[j].Y + m_normals[j].Y * m_delta));
 #ifdef use_xyz
-  SetOffsetZ(steps, steps, m_srcPoly[j], pt);
+  SetOffsetZ(steps, steps+1, j, pt);
 #endif
   m_destPoly.push_back(pt);
 }
@@ -4872,9 +4915,9 @@ void ZFill::OnSplitEdge(const IntPoint2Z &prev, IntPoint2Z &pt, const IntPoint2Z
 void ZFill::OnAppendOverlapping(IntPoint2Z &prev, IntPoint2Z &to) { }
 void ZFill::OnJoin(IntPoint2Z &e1from, IntPoint2Z &e1to, IntPoint2Z &e2from, IntPoint2Z &e2to) { }
 void ZFill::OnRemoveSpike(IntPoint2Z &prev, IntPoint2Z &curr, IntPoint2Z &next) { }
-void ZFill::OnOffset(int step, int steps, IntPoint& z, IntPoint& pt) {
+void ZFill::OnOffset(int step, int steps, const IntPoint& prev, const IntPoint& curr, const IntPoint& next, IntPoint& pt) {
   //just return - points default to 0 z.
-  UNUSED(step); UNUSED(steps); UNUSED(z); UNUSED(pt);
+  UNUSED(step); UNUSED(steps); UNUSED(prev); UNUSED(curr); UNUSED(next); UNUSED(pt);
 }
 
 //------------------------------------------------------------------------------
@@ -4933,8 +4976,8 @@ void FollowingZFill::OnRemoveSpike(IntPoint2Z &prev, IntPoint2Z &spike, IntPoint
     }
   }
 }
-void FollowingZFill::OnOffset(int step, int steps, IntPoint& source, IntPoint& dest) {
-  dest.Z = Clone(source.Z);
+void FollowingZFill::OnOffset(int step, int steps, const IntPoint& prev, const IntPoint& curr, const IntPoint& next, IntPoint& dest) {
+  dest.Z = Clone(curr.Z);
 }
 
 
