@@ -4081,8 +4081,10 @@ void ClipperOffset::FixOrientations()
       PolyNode& node = *m_polyNodes.Childs[i];
       if (node.m_endtype == etClosedPolygon ||
         (node.m_endtype == etClosedLine && Orientation(node.Contour))) {
+#ifdef use_xyz
+          m_ZFill->OnReversePath(node.Contour);
+#endif
           ReversePath(node.Contour);
-          printf("Oh no! Reversed a path! (0)\n");
         }
     }
   } else
@@ -4091,8 +4093,10 @@ void ClipperOffset::FixOrientations()
     {
       PolyNode& node = *m_polyNodes.Childs[i];
       if (node.m_endtype == etClosedLine && !Orientation(node.Contour)) {
+#ifdef use_xyz
+        m_ZFill->OnReversePath(node.Contour);
+#endif
         ReversePath(node.Contour);
-        printf("Oh no! Reversed a path! (1)\n");
       }
     }
   }
@@ -4108,6 +4112,7 @@ void ClipperOffset::Execute(Paths& solution, double delta)
   //now clean up 'corners' ...
   Clipper clpr;
 #ifdef use_xyz
+  clpr.PreserveCollinear(true); // TODO: Ask m_ZFill about coalescence
   clpr.Callback(m_ZFill);
 #endif // use_xyz
   clpr.AddPaths(m_destPolys, ptSubject, true);
@@ -4919,6 +4924,7 @@ void ZFill::OnOffset(int step, int steps, const IntPoint& prev, const IntPoint& 
   //just return - points default to 0 z.
   UNUSED(step); UNUSED(steps); UNUSED(prev); UNUSED(curr); UNUSED(next); UNUSED(pt);
 }
+void ZFill::OnReversePath(Path &poly) { UNUSED(poly); }
 
 //------------------------------------------------------------------------------
 // ZFill for edge information stored in the node following the edge
@@ -4977,7 +4983,29 @@ void FollowingZFill::OnRemoveSpike(IntPoint2Z &prev, IntPoint2Z &spike, IntPoint
   }
 }
 void FollowingZFill::OnOffset(int step, int steps, const IntPoint& prev, const IntPoint& curr, const IntPoint& next, IntPoint& dest) {
+  UNUSED(step); UNUSED(steps); UNUSED(prev); UNUSED(next);
   dest.Z = Clone(curr.Z);
+}
+void FollowingZFill::OnReversePath(Path &poly) {
+  if (poly.empty()) return;
+  IntPoint first = poly[0];
+  for (int c = 0; c < poly.size() - 1; c++) {
+    poly[c].Z = poly[c+1].Z;
+    ReverseZ(poly[c].Z);
+  }
+  poly.back().Z = first.Z;
+  ReverseZ(poly.back().Z);
+}
+
+void FollowingZFill::ReverseZ(cInt z) {
+  UNUSED(z);
+}
+cInt FollowingZFill::Clone(cInt z) {
+  return z;
+}
+cInt FollowingZFill::StripBegin(cInt z, const IntPoint &from, const IntPoint &to, const IntPoint &pt) {
+  UNUSED(from); UNUSED(to); UNUSED(pt);
+  return z;
 }
 
 

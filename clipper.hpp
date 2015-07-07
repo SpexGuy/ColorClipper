@@ -181,6 +181,7 @@ public:
   virtual void OnJoin(IntPoint2Z &e1from, IntPoint2Z &e1to, IntPoint2Z &e2from, IntPoint2Z &e2to);
   virtual void OnRemoveSpike(IntPoint2Z &prev, IntPoint2Z &curr, IntPoint2Z &next);
   virtual void OnOffset(int step, int steps, const IntPoint &prev, const IntPoint &curr, const IntPoint &next, IntPoint& pt);
+  virtual void OnReversePath(Path &poly); // passed before the reversal occurs
   virtual ~ZFill() {}
 };
 
@@ -194,19 +195,20 @@ public:
   virtual void OnJoin(IntPoint2Z &e1from, IntPoint2Z &e1to, IntPoint2Z &e2from, IntPoint2Z &e2to) override;
   virtual void OnRemoveSpike(IntPoint2Z &prev, IntPoint2Z &curr, IntPoint2Z &next) override;
   virtual void OnOffset(int step, int steps, const IntPoint &prev, const IntPoint &curr, const IntPoint &next, IntPoint& pt) override;
+  virtual void OnReversePath(Path &poly) override;
   virtual ~FollowingZFill() {}
 protected:
   // Override these functions for more complex edge attributes (like sub-extents)
 
   // Reverse the edge attribute pointed to by z
-  virtual void ReverseZ(cInt z) { }
+  virtual void ReverseZ(cInt z);
   // Clone the edge attribute pointed to by z and return the pointer to this clone.
-  virtual cInt Clone(cInt z) {return z;}
+  virtual cInt Clone(cInt z);
   // Strip the range [from, pt) out of the edge attribute pointed to by z and return
   // a new attribute containing only this range.
   // pt is guaranteed to be on the line between from and to (within integer truncation)
   // and not coincident with either.
-  virtual cInt StripBegin(cInt z, const IntPoint& from, const IntPoint& to, const IntPoint& pt) {return z;}
+  virtual cInt StripBegin(cInt z, const IntPoint& from, const IntPoint& to, const IntPoint& pt);
 };
 #endif
 
