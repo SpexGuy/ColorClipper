@@ -182,6 +182,7 @@ public:
   virtual void OnRemoveSpike(IntPoint2Z &prev, IntPoint2Z &curr, IntPoint2Z &next);
   virtual void OnOffset(int step, int steps, const IntPoint &prev, const IntPoint &curr, const IntPoint &next, IntPoint& pt);
   virtual void OnReversePath(Path &poly); // passed before the reversal occurs
+  virtual void OnFinishOffset(Path &poly);
   virtual ~ZFill() {}
 };
 
@@ -196,6 +197,7 @@ public:
   virtual void OnRemoveSpike(IntPoint2Z &prev, IntPoint2Z &curr, IntPoint2Z &next) override;
   virtual void OnOffset(int step, int steps, const IntPoint &prev, const IntPoint &curr, const IntPoint &next, IntPoint& pt) override;
   virtual void OnReversePath(Path &poly) override;
+  virtual void OnFinishOffset(Path &poly) override;
   virtual ~FollowingZFill() {}
 protected:
   // Override these functions for more complex edge attributes (like sub-extents)

@@ -4264,6 +4264,10 @@ void ClipperOffset::DoOffset(double delta)
           else X = -1;
         };
       }
+#ifdef use_xyz
+      // TODO: This is kinda a special case in my mind - should it call a different function?
+      m_ZFill->OnFinishOffset(m_destPoly);
+#endif
       m_destPolys.push_back(m_destPoly);
       continue;
     }
@@ -4282,6 +4286,9 @@ void ClipperOffset::DoOffset(double delta)
       int k = len - 1;
       for (int j = 0; j < len; ++j)
         OffsetPoint(j, k, node.m_jointype);
+#ifdef use_xyz
+      m_ZFill->OnFinishOffset(m_destPoly);
+#endif
       m_destPolys.push_back(m_destPoly);
     }
     else if (node.m_endtype == etClosedLine)
@@ -4289,6 +4296,9 @@ void ClipperOffset::DoOffset(double delta)
       int k = len - 1;
       for (int j = 0; j < len; ++j)
         OffsetPoint(j, k, node.m_jointype);
+#ifdef use_xyz
+      m_ZFill->OnFinishOffset(m_destPoly);
+#endif
       m_destPolys.push_back(m_destPoly);
       m_destPoly.clear();
       //re-build m_normals ...
@@ -4299,6 +4309,9 @@ void ClipperOffset::DoOffset(double delta)
       k = 0;
       for (int j = len - 1; j >= 0; j--)
         OffsetPoint(j, k, node.m_jointype);
+#ifdef use_xyz
+      m_ZFill->OnFinishOffset(m_destPoly);
+#endif
       m_destPolys.push_back(m_destPoly);
     }
     else
@@ -4369,6 +4382,9 @@ void ClipperOffset::DoOffset(double delta)
         else
           DoRound(0, 1);
       }
+#ifdef use_xyz
+      m_ZFill->OnFinishOffset(m_destPoly);
+#endif
       m_destPolys.push_back(m_destPoly);
     }
   }
@@ -4925,6 +4941,7 @@ void ZFill::OnOffset(int step, int steps, const IntPoint& prev, const IntPoint& 
   UNUSED(step); UNUSED(steps); UNUSED(prev); UNUSED(curr); UNUSED(next); UNUSED(pt);
 }
 void ZFill::OnReversePath(Path &poly) { UNUSED(poly); }
+void ZFill::OnFinishOffset(Path &poly) { UNUSED(poly); }
 
 //------------------------------------------------------------------------------
 // ZFill for edge information stored in the node following the edge
@@ -4995,6 +5012,9 @@ void FollowingZFill::OnReversePath(Path &poly) {
   }
   poly.back().Z = first.Z;
   ReverseZ(poly.back().Z);
+}
+void FollowingZFill::OnFinishOffset(Path &poly) {
+  UNUSED(poly);
 }
 
 void FollowingZFill::ReverseZ(cInt z) {
